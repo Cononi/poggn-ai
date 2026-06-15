@@ -32,6 +32,10 @@ def worktree_path(cur: dict, lane: str) -> Path:
     return lib.root_dir() / ".worktrees" / Path(cur["path"]).name / lane.lower()
 
 
+def ko() -> bool:
+    return lib.language() == "ko"
+
+
 def rerender(cur: dict) -> None: codex_state.write_tasks(cur, codex_state.read_tasks(cur))
 
 
@@ -105,7 +109,10 @@ def cmd_csv(args) -> int:
             skills = ",".join(row.get("skills", [])); deps = ",".join(row.get("deps", []))
             cmd = f"cd {lib.root_dir()} && python3 .codex/script/codex_task_git.py"
             cmd += f" commit {row['task_id']} --lane {row['id']} --message \"{row['title']}\""
-            instr = f"Work in {row['worktree']}. Skills={skills}. Finish from root: {cmd}"
+            if ko():
+                instr = f"작업 위치: {row['worktree']}. 스킬={skills}. 루트에서 완료: {cmd}"
+            else:
+                instr = f"Work in {row['worktree']}. Skills={skills}. Finish from root: {cmd}"
             writer.writerow({"wave": row.get("wave", "W001"), "lane_id": row["id"],
                              "task_id": row["task_id"], "agent": row["agent"],
                              "skills": skills, "worktree": row["worktree"],
@@ -141,13 +148,22 @@ def cmd_merge(args) -> int:
 def cmd_prompt(args) -> int:
     cur = current(); suffix = "_" + wave_value(args.wave) if args.wave else ""
     out = Path(cur["path"]) / f"parallel_prompt{suffix}.md"
-    text = ["# Parallel lanes", "", "Run each lane in its worktree.", ""]
+    if ko():
+        text = ["# 병렬 레인", "", "각 레인을 해당 worktree에서 실행하세요.", ""]
+        labels = {"task": "태스크", "worktree": "작업트리", "branch": "브랜치",
+                  "deps": "의존성", "skills": "스킬", "goal": "목표", "commit": "커밋"}
+    else:
+        text = ["# Parallel lanes", "", "Run each lane in its worktree.", ""]
+        labels = {"task": "task", "worktree": "worktree", "branch": "branch",
+                  "deps": "deps", "skills": "skills", "goal": "goal", "commit": "commit"}
     for row in selected(read_jsonl(lane_path(cur)), args):
         text += [f"## {row.get('wave','W001')} {row['id']} {row['agent']}",
-                 f"task: {row['task_id']}", f"worktree: {row['worktree']}",
-                 f"branch: {row['branch']}", f"deps: {','.join(row.get('deps', [])) or '-'}",
-                 f"skills: {','.join(row.get('skills', []))}", f"goal: {row['title']}",
-                 f"commit: cd {lib.root_dir()} && python3 .codex/script/codex_task_git.py commit {row['task_id']} --lane {row['id']}", ""]
+                 f"{labels['task']}: {row['task_id']}", f"{labels['worktree']}: {row['worktree']}",
+                 f"{labels['branch']}: {row['branch']}",
+                 f"{labels['deps']}: {','.join(row.get('deps', [])) or '-'}",
+                 f"{labels['skills']}: {','.join(row.get('skills', []))}",
+                 f"{labels['goal']}: {row['title']}",
+                 f"{labels['commit']}: cd {lib.root_dir()} && python3 .codex/script/codex_task_git.py commit {row['task_id']} --lane {row['id']}", ""]
     out.write_text("\n".join(text), encoding="utf-8"); print(out); return 0
 
 

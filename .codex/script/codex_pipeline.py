@@ -51,6 +51,10 @@ def compact(value, limit: int = 180) -> str:
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
 
 
+def ko() -> bool:
+    return lib.language() == "ko"
+
+
 def slim(row: dict) -> dict:
     purpose = row.get("purpose") or codex_trace_view.fallback_purpose(row)
     acceptance = row.get("acceptance") or codex_trace_view.fallback_acceptance(row)
@@ -66,10 +70,15 @@ def instruction(row: dict) -> str:
     cmd = f"cd {root} && python3 .codex/script/codex_task_git.py"
     cmd += f" commit {row['task_id']} --lane {row['id']}"
     cmd += f" --message \"{row['title']}\" --allow-empty"
-    deps = ",".join(row.get("deps", [])) or "none"
+    deps = ",".join(row.get("deps", [])) or ("없음" if ko() else "none")
     label = codex_agent_pool.label(row); key = codex_agent_pool.reuse_key(row)
     purpose = compact(row.get("purpose") or codex_trace_view.fallback_purpose(row), 160)
     acceptance = compact(row.get("acceptance") or codex_trace_view.fallback_acceptance(row), 160)
+    if ko():
+        return (f"에이전트 {row['agent']}를 {label}로 사용하세요. 재사용 키={key}. "
+                f"목적={purpose} 완료기준={acceptance} "
+                f"단계={row.get('stage','implement')}. 작업 위치는 {row['worktree']}로 제한합니다. "
+                f"상위 레인={deps}. 스킬={skills}. 루트에서 완료 명령: {cmd}")
     return (f"Use agent {row['agent']} as {label}. Reuse key={key}. "
             f"Purpose={purpose}. Acceptance={acceptance}. "
             f"Stage={row.get('stage','implement')}. Work only in {row['worktree']}. "
@@ -124,7 +133,8 @@ def cmd_ready(args) -> int:
         data = {"ready": [slim(x) for x in shown],
                 "ready_shown": len(shown), "ready_total": len(rows),
                 "ready_hidden": max(0, len(rows) - len(shown)),
-                "note": "Use $codex-pipeline csv --ready for the full spawn table."}
+                "note": ("전체 spawn 표는 $codex-pipeline csv --ready를 사용하세요."
+                         if ko() else "Use $codex-pipeline csv --ready for the full spawn table.")}
     else:
         data = rows
     print(json.dumps(data, ensure_ascii=False, indent=2)); return 0
@@ -156,8 +166,24 @@ def cmd_csv(args) -> int:
 
 def cmd_prompt(args) -> int:
     c = cur(); rows = ready_rows(lanes(c), args.stage, args.wave)
-    if not rows: print("No ready lanes."); return 0
+    if not rows:
+        print("준비된 레인이 없습니다." if ko() else "No ready lanes."); return 0
     path = write_csv(c, rows, "agent_jobs_ready.csv")
+    if ko():
+        print("worktree가 없으면 먼저 $codex-pipeline prepare를 실행하세요.")
+        print("ready CSV의 각 행마다 subagent 1개를 실행하고 모든 결과를 기다리세요.")
+        print("행 계약만 사용하고 전체 TASKS.md를 subagent prompt에 붙이지 마세요.")
+        print("main은 orchestrator입니다. lane 완료 전 subagent 결과를 검토하세요.")
+        print("변경 파일, 테스트, blocker, 보안 메모, acceptance criteria를 확인하세요.")
+        print("검토 실패 시 구체적 지적과 함께 해당 lane을 다시 전달하세요.")
+        print("worker_name이 같은 MAW run과 일치하면 활성 worker를 재사용하세요.")
+        print(f"csv_path: {path}")
+        print("id_column: lane_id")
+        print("instruction: instruction 컬럼을 그대로 사용하세요.")
+        print("workflow나 wave가 끝나면 완료된 worker를 닫으세요.")
+        print("output_csv_path: " + str(Path(c["path"]) / "agent_jobs_result.csv"))
+        print("batch 후 $codex-pipeline status --for-ai를 실행하세요.")
+        return 0
     print("First run $codex-pipeline prepare if worktrees are missing.")
     print("Spawn one subagent per ready CSV row and wait for all results.")
     print("Use only the row contract; do not paste full TASKS.md into subagent prompts.")

@@ -13,6 +13,7 @@ def cur() -> dict:
 
 def rows() -> list[dict]: return codex_lanes.read_jsonl(codex_lanes.lane_path(cur()))
 def ready() -> list[dict]: return codex_pipeline.ready_rows(rows())
+def ko() -> bool: return lib.language() == "ko"
 
 
 def cmd_ready(args) -> int:
@@ -32,7 +33,10 @@ def cmd_csv(args) -> int:
         for r in ready():
             name = r.get("worker_name") or f"{r['agent']}-{r.get('feature','work')}"
             cmd = f"cd {lib.root_dir()} && python3 .codex/script/codex_task_git.py commit {r['task_id']} --lane {r['id']} --message \"{r['title']}\" --allow-empty"
-            inst = f"Use worker {name}. Agent={r['agent']}. Worktree={r['worktree']}. Finish: {cmd}"
+            if ko():
+                inst = f"worker {name}을 사용하세요. 에이전트={r['agent']}. 작업트리={r['worktree']}. 완료 명령: {cmd}"
+            else:
+                inst = f"Use worker {name}. Agent={r['agent']}. Worktree={r['worktree']}. Finish: {cmd}"
             w.writerow({"job_name": f"{name}-{r['id']}", "worker_name": name,
                         "reuse_key": r.get("reuse_key", name), "agent": r["agent"],
                         "lane_id": r["id"], "task_id": r["task_id"],
@@ -42,6 +46,11 @@ def cmd_csv(args) -> int:
 
 
 def cmd_prompt(args) -> int:
+    if ko():
+        print("$codex-scheduler csv --ready를 사용하세요.")
+        print("CSV 행마다 subagent 1개를 실행하고 worker_name을 label로 사용하세요.")
+        print("reuse_key가 일치하고 context가 깨끗할 때만 재사용하세요.")
+        print("새 $maw 실행 전 완료된 thread를 닫으세요."); return 0
     print("Use $codex-scheduler csv --ready.")
     print("Spawn one subagent per CSV row and use worker_name as label.")
     print("Reuse only when reuse_key matches and context is still clean.")

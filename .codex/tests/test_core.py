@@ -263,3 +263,55 @@ def test_hook_protected_write_still_denies_codex_edits_in_project_mode():
         assert hook_context.protected_write(payload)
     finally:
         hook_context.read_mode = original
+
+
+def test_trace_view_renders_tasks_markdown_in_current_language(tmp_path):
+    import codex_trace_view
+    original = codex_trace_view.lib.language
+    codex_trace_view.lib.language = lambda: 'ko'
+    try:
+        cur = {
+            'path': str(tmp_path), 'title': '주문 기능', 'branch': 'feature/order',
+            'base_branch': 'main', 'workflow': 'maw', 'phase': 'plan',
+            'run_version': 1, 'project_version': '0.1.0', 'next_version': '0.1.1',
+            'created_at': '2026-06-15T00:00:00+09:00',
+        }
+        task = {
+            'id': 'T001', 'title': '주문 생성', 'agent': 'backend',
+            'skills': ['spring-boot'], 'status': 'todo',
+            'purpose': '주문 생성 API를 구현합니다.',
+            'acceptance': '검증을 통과합니다.',
+            'non_goals': '결제 연동은 제외합니다.',
+        }
+        codex_trace_view.render(cur, [task])
+        rendered = (tmp_path / 'TASKS.md').read_text(encoding='utf-8')
+        assert '제목: 주문 기능' in rendered
+        assert '## 태스크' in rendered
+        assert '목적:주문 생성 API를 구현합니다.' in rendered
+        assert '완료기준:검증을 통과합니다.' in rendered
+        assert 'purpose:' not in rendered
+        assert 'acceptance:' not in rendered
+    finally:
+        codex_trace_view.lib.language = original
+
+
+def test_pipeline_instruction_uses_current_language(tmp_path):
+    import codex_pipeline
+    original_lang = codex_pipeline.lib.language
+    original_root = codex_pipeline.lib.root_dir
+    codex_pipeline.lib.language = lambda: 'ko'
+    codex_pipeline.lib.root_dir = lambda: tmp_path
+    try:
+        row = {
+            'id': 'L001', 'task_id': 'T001', 'agent': 'backend',
+            'title': '주문 생성', 'stage': 'implement', 'feature': 'order',
+            'worktree': str(tmp_path / 'worktree'), 'deps': [], 'skills': ['spring-boot'],
+            'purpose': '주문 기능을 구현합니다.', 'acceptance': '검증을 통과합니다.',
+        }
+        text = codex_pipeline.instruction(row)
+        assert '에이전트 backend' in text
+        assert '작업 위치는' in text
+        assert 'Finish from root' not in text
+    finally:
+        codex_pipeline.lib.language = original_lang
+        codex_pipeline.lib.root_dir = original_root

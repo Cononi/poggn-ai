@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+import lib
 
 
 def jsonl(path: Path) -> list[dict]:
@@ -27,6 +28,40 @@ def by_task(rows: list[dict]) -> dict[str, list[dict]]:
     for row in rows:
         out.setdefault(row.get("task_id", ""), []).append(row)
     return out
+
+
+LABELS = {
+    "ko": {
+        "title": "제목", "branch": "브랜치", "base": "기준",
+        "workflow": "워크플로", "phase": "단계", "run_version": "실행버전",
+        "project_version": "프로젝트버전", "next_version": "다음버전",
+        "created_at": "생성시각", "progress": "진행률", "waves": "웨이브",
+        "agents": "에이전트", "tasks": "태스크", "commits": "커밋",
+        "lanes": "레인", "stages": "단계", "purpose": "목적",
+        "acceptance": "완료기준", "non_goals": "제외범위",
+        "worker": "작업자", "last": "마지막", "deps": "의존성",
+        "lane": "레인", "stage": "단계", "wave": "웨이브",
+        "commit": "커밋", "more_files": "외 {hidden}개 파일 더 있음 (표시 {shown}/{total} 전체)",
+        "no_file": "파일 없음",
+    },
+    "en": {
+        "title": "title", "branch": "branch", "base": "base",
+        "workflow": "workflow", "phase": "phase", "run_version": "run_version",
+        "project_version": "project_version", "next_version": "next_version",
+        "created_at": "created_at", "progress": "progress", "waves": "waves",
+        "agents": "agents", "tasks": "tasks", "commits": "commits",
+        "lanes": "lanes", "stages": "stages", "purpose": "purpose",
+        "acceptance": "acceptance", "non_goals": "non_goals",
+        "worker": "worker", "last": "last", "deps": "deps",
+        "lane": "lane", "stage": "stage", "wave": "wave",
+        "commit": "commit", "more_files": "+{hidden} more files (showing {shown}/{total} total)",
+        "no_file": "no-file",
+    },
+}
+
+
+def current_labels() -> dict:
+    return LABELS.get(lib.language(), LABELS["ko"])
 
 
 def short_path(path: str, max_len: int = 58) -> str:
@@ -63,16 +98,18 @@ def fallback_acceptance(item: dict) -> str:
 
 
 def contract_lines(item: dict, indent: str = "  ") -> list[str]:
+    labels = current_labels()
     purpose = value_text(item.get("purpose") or fallback_purpose(item))
     acceptance = value_text(item.get("acceptance") or fallback_acceptance(item))
     non_goals = value_text(item.get("non_goals"), 160)
-    out = [f"{indent}purpose:{purpose}", f"{indent}acceptance:{acceptance}"]
+    out = [f"{indent}{labels['purpose']}:{purpose}", f"{indent}{labels['acceptance']}:{acceptance}"]
     if non_goals:
-        out.append(f"{indent}non_goals:{non_goals}")
+        out.append(f"{indent}{labels['non_goals']}:{non_goals}")
     return out
 
 
 def file_parts(files: list[str], limit: int = 8) -> tuple[str, list[str]]:
+    labels = current_labels()
     counts = {"A": 0, "M": 0, "D": 0, "R": 0, "?": 0}; shown = []
     for raw in files:
         parts = raw.split("\t"); code = parts[0][:1] if parts else "?"
@@ -82,8 +119,8 @@ def file_parts(files: list[str], limit: int = 8) -> tuple[str, list[str]]:
             shown.append(f"{code} {short_path(path)}")
     summary = " ".join(f"{k}{v}" for k, v in counts.items() if v)
     if len(files) > limit:
-        shown.append(f"+{len(files) - limit} more files (showing {limit}/{len(files)} total)")
-    return summary or "no-file", shown
+        shown.append(labels["more_files"].format(hidden=len(files) - limit, shown=limit, total=len(files)))
+    return summary or labels["no_file"], shown
 
 
 def task_done(task: dict, task_lanes: list[dict], task_commits: list[dict]) -> bool:
@@ -96,6 +133,7 @@ def task_done(task: dict, task_lanes: list[dict], task_commits: list[dict]) -> b
 
 
 def agent_rows(tasks: list[dict], lane_map: dict, commit_map: dict) -> list[str]:
+    labels = current_labels()
     agents: dict[str, dict] = {}
     for task in tasks:
         name = task.get("agent", "none")
@@ -105,76 +143,80 @@ def agent_rows(tasks: list[dict], lane_map: dict, commit_map: dict) -> list[str]
         if task.get("stage"): row["stages"].add(task.get("stage"))
         if task_done(task, tl, tc):
             row["done"] += 1
-    lines = ["", "## agents"]
+    lines = ["", f"## {labels['agents']}"]
     for name in sorted(agents):
         row = agents[name]
         stage = ",".join(sorted(row.get("stages", []))) or "-"
-        lines.append(f"- {name} tasks:{row['done']}/{row['tasks']} "
-                     f"commits:{row['commits']} lanes:{row['lanes']} "
-                     f"stages:{stage}")
+        lines.append(f"- {name} {labels['tasks']}:{row['done']}/{row['tasks']} "
+                     f"{labels['commits']}:{row['commits']} {labels['lanes']}:{row['lanes']} "
+                     f"{labels['stages']}:{stage}")
     return lines
 
 
 
 def wave_rows(lanes_rows: list[dict]) -> list[str]:
+    labels = current_labels()
     waves: dict[str, dict] = {}
     for row in lanes_rows:
         name = row.get("wave", "W001")
         item = waves.setdefault(name, {"lanes": 0, "done": 0, "agents": set()})
         item["lanes"] += 1; item["agents"].add(row.get("agent", ""))
         if row.get("status") in {"done", "merged"}: item["done"] += 1
-    lines = ["", "## waves"]
+    lines = ["", f"## {labels['waves']}"]
     for name in sorted(waves):
         row = waves[name]; agents = ",".join(sorted(row["agents"]))
-        lines.append(f"- {name} lanes:{row['done']}/{row['lanes']} agents:{agents}")
+        lines.append(f"- {name} {labels['lanes']}:{row['done']}/{row['lanes']} {labels['agents']}:{agents}")
     return lines
 
 def task_lines(task: dict, tl: list[dict], tc: list[dict]) -> list[str]:
+    labels = current_labels()
     mark = "x" if task_done(task, tl, tc) else " "
     skills = ",".join(task.get("skills", [])); tid = task["id"]
     lane_done = sum(1 for x in tl if x.get("status") in {"done", "merged"})
-    lane_text = f" lanes:{lane_done}/{len(tl)}" if tl else ""
+    lane_text = f" {labels['lanes']}:{lane_done}/{len(tl)}" if tl else ""
     wave = task.get("wave", "")
     stage = task.get("stage", "")
     head = f"- [{mark}] {tid} {task['title']} [{task.get('agent','')}] {skills}"
-    if stage: head += f" stage:{stage}"
-    lines = [head + (f" wave:{wave}" if wave else "")]
-    lines.append(f"  commits:{len(tc)}{lane_text}")
+    if stage: head += f" {labels['stage']}:{stage}"
+    lines = [head + (f" {labels['wave']}:{wave}" if wave else "")]
+    lines.append(f"  {labels['commits']}:{len(tc)}{lane_text}")
     lines += contract_lines(task, "  ")
     for lane in tl:
         lm = "x" if lane.get("status") in {"done", "merged"} else " "
-        tail = f" last:{lane.get('commit')}" if lane.get("commit") else ""
-        wave = f" wave:{lane.get('wave')}" if lane.get('wave') else ""
-        stage = f" stage:{lane.get('stage')}" if lane.get("stage") else ""
+        tail = f" {labels['last']}:{lane.get('commit')}" if lane.get("commit") else ""
+        wave = f" {labels['wave']}:{lane.get('wave')}" if lane.get('wave') else ""
+        stage = f" {labels['stage']}:{lane.get('stage')}" if lane.get("stage") else ""
         deps = ",".join(lane.get("deps", [])) or "-"
-        wname = f" worker:{lane.get('worker_name')}" if lane.get('worker_name') else ""
+        wname = f" {labels['worker']}:{lane.get('worker_name')}" if lane.get('worker_name') else ""
         lines.append(f"  - [{lm}] {lane['id']} {lane['agent']} {lane['title']}"
-                     f"{stage}{wave} deps:{deps}{wname}{tail}")
+                     f"{stage}{wave} {labels['deps']}:{deps}{wname}{tail}")
         lines += contract_lines(lane, "    ")
     for row in tc:
         summary, shown = file_parts(row.get("files", []))
-        lines.append(f"  - commit {row.get('short')} lane:{row.get('lane_id') or '-'} {summary}")
+        lines.append(f"  - {labels['commit']} {row.get('short')} {labels['lane']}:{row.get('lane_id') or '-'} {summary}")
         for item in shown:
             lines.append(f"    - {item}")
     return lines
 
 
 def render(cur: dict, tasks: list[dict]) -> None:
+    labels = current_labels()
     lane_rows = lanes(cur); commit_rows = commits(cur)
     lane_map = by_task(lane_rows); commit_map = by_task(commit_rows)
     done = sum(1 for t in tasks if task_done(t, lane_map.get(t["id"], []),
                                               commit_map.get(t["id"], [])))
-    lines = ["# TASKS", "", f"title: {cur.get('title')}",
-             f"branch: {cur.get('branch')}", f"base: {cur.get('base_branch')}",
-             f"workflow: {cur.get('workflow')}", f"phase: {cur.get('phase')}",
-             f"run_version: {cur.get('run_version')}",
-             f"project_version: {cur.get('project_version')}",
-             f"next_version: {cur.get('next_version')}",
-             f"created_at: {cur.get('created_at')}",
-             f"progress: {done}/{len(tasks)}"]
+    heading = "# 태스크" if lib.language() == "ko" else "# TASKS"
+    lines = [heading, "", f"{labels['title']}: {cur.get('title')}",
+             f"{labels['branch']}: {cur.get('branch')}", f"{labels['base']}: {cur.get('base_branch')}",
+             f"{labels['workflow']}: {cur.get('workflow')}", f"{labels['phase']}: {cur.get('phase')}",
+             f"{labels['run_version']}: {cur.get('run_version')}",
+             f"{labels['project_version']}: {cur.get('project_version')}",
+             f"{labels['next_version']}: {cur.get('next_version')}",
+             f"{labels['created_at']}: {cur.get('created_at')}",
+             f"{labels['progress']}: {done}/{len(tasks)}"]
     lines += wave_rows(lane_rows)
     lines += agent_rows(tasks, lane_map, commit_map)
-    lines += ["", "## tasks"]
+    lines += ["", f"## {labels['tasks']}"]
     for task in tasks:
         lines += task_lines(task, lane_map.get(task["id"], []), commit_map.get(task["id"], []))
     (Path(cur["path"]) / "TASKS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
