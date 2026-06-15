@@ -12,6 +12,7 @@ description: MAW 구현 결과를 test, QA, refactor, security lane으로 전달
 - upstream TASK가 commit에 연결된 뒤 downstream lane을 만듭니다.
 - downstream prompt에는 commit, changed files, risk, expected output을 넣습니다.
 - 검증 agent는 구현을 대체하지 않고 판정과 최소 수정 제안에 집중합니다.
+- downstream 결과는 자유 회의록이 아니라 verdict, risk, recommendation, evidence 판정표로 남깁니다.
 
 ## Procedure
 
@@ -19,6 +20,8 @@ description: MAW 구현 결과를 test, QA, refactor, security lane으로 전달
 - 중복 downstream lane은 root_lane_id와 commit 기준으로 합칩니다.
 - QA, refactor, security 결과는 pass, fail, blocked 중 하나로 정리합니다.
 - 실패 결과는 구현 완료 취소가 아니라 follow-up TASK 후보로 남깁니다.
+- main은 downstream 판정 충돌을 통합해 가장 보수적인 결론을 채택합니다.
+- 통합 결과는 현재 workflow의 `AGENT_REVIEWS.md`, 채택 결정은 현재 workflow의 `DECISIONS.md`에 짧게 남깁니다.
 
 ## Expert Rules
 
@@ -27,6 +30,7 @@ description: MAW 구현 결과를 test, QA, refactor, security lane으로 전달
 - QA와 security는 구현 agent와 분리된 판단권을 가집니다.
 - event idempotency는 root lane, commit, target role 조합으로 봅니다.
 - 실패 lane은 원인, 재현, 소유자를 가진 follow-up으로 바꿉니다.
+- blocker가 아닌 리스크는 사용자에게 묻지 않고 RISKS.md에 기록한 뒤 자동 처리 또는 later follow-up으로 분류합니다.
 - 결과 통합 시 pass보다 blocker와 unresolved risk를 먼저 읽습니다.
 - downstream 입력은 commit SHA, diffstat, owned files, risk를 포함합니다.
 - QA, refactor, security 결과가 충돌하면 가장 보수적인 판정을 채택합니다.
@@ -69,6 +73,8 @@ description: MAW 구현 결과를 test, QA, refactor, security lane으로 전달
 - 각 downstream report가 upstream commit hash를 참조합니다.
 - 최종 보고에 pass, fail, blocked 집계가 있습니다.
 - 실패 보고에는 재현 명령과 follow-up TASK 후보가 있습니다.
+- AGENT_REVIEWS.md는 lane별 verdict, risk, recommendation, evidence를 포함합니다.
+- DECISIONS.md는 main이 채택한 결정과 대안을 포함합니다.
 
 ## Done
 
