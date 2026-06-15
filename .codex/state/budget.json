@@ -1,0 +1,16 @@
+{
+  "saw": {
+    "max_files": 6,
+    "max_code_files": 4,
+    "max_lines": 260,
+    "max_new_files": 3
+  },
+  "maw": {
+    "max_lanes_per_wave": 6,
+    "max_files_per_wave": 80,
+    "max_lines_per_wave": 3000,
+    "max_files_per_lane": 30,
+    "max_lines_per_lane": 900,
+    "allow_epic_total_over_budget": true
+  }
+}

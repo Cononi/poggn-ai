@@ -1,0 +1,6 @@
+{
+  "shortcut_limit": 3000,
+  "for_ai_limit": 2000,
+  "diff_file_limit": 40,
+  "trace_task_limit": 20
+}

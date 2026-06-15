@@ -1,0 +1,1279 @@
+{
+  "ko": {
+    "files": {
+      "README.md": [
+        "# Codex Git AI 자동화 템플릿",
+        "",
+        "단일 ZIP 템플릿입니다.",
+        "",
+        "언어는 $codex-language ko 또는 en 으로 전환합니다.",
+        "",
+        "## 빠른 시작",
+        "",
+        "```bash",
+        "python3 .codex/script/setup_links.py",
+        "```",
+        "",
+        "상태 조회, TASK 처리, gate 검사는 $codex-* 명령을 우선 사용합니다.",
+        "",
+        "hook과 script가 처리하므로 모델 토큰 사용을 줄입니다.",
+        "",
+        "```text",
+        "$codex-doctor --deep --for-ai",
+        "$codex-risk classify --text \"dto 수정\" --for-ai",
+        "$codex-context pack --for-ai",
+        "$codex-verify gate --staged --mode saw --for-ai",
+        "```",
+        "",
+        "## workflow",
+        "",
+        "큰 작업은 MAW를 사용합니다.",
+        "",
+        "```text",
+        "$maw spring boot 쇼핑몰 order payment rest api",
+        "```",
+        "",
+        "작은 단일 패치는 SAW를 사용합니다.",
+        "",
+        "```text",
+        "$codex-saw init --title fix --branch hotfix/fix --text \"fix dto\"",
+        "$codex-saw prompt",
+        "```",
+        "",
+        "## 상세 문서",
+        "",
+        "`docs/index.html`을 열면 검색 가능한 wiki를 볼 수 있습니다.",
+        "",
+        "Markdown 원본은 `docs/` 폴더에 있습니다.",
+        "",
+        "## MAW wave budget",
+        "",
+        "MAW의 80개 파일/3000줄 제한은 전체 epic 제한이 아닙니다.",
+        "",
+        "대형 신규 구현은 W001, W002 같은 wave로 나눠 처리합니다.",
+        "",
+        "```text",
+        "$codex-lanes csv --wave W001",
+        "$codex-lanes prompt --wave W001",
+        "```",
+        "",
+        "## MAW agent pipeline",
+        "MAW는 feature별 구현 worker와 downstream 검증 worker로 실행합니다.",
+        "$codex-pipeline ready --for-ai",
+        "$codex-pipeline prompt",
+        "$codex-agents list",
+        "",
+        "## 이벤트 기반 MAW",
+        "",
+        "MAW는 구현 lane 완료 이벤트를 받아 필요한 후속 agent만 생성합니다.",
+        "",
+        "$codex-pipeline ready --for-ai",
+        "$codex-pool status",
+        "$codex-pipeline prompt",
+        "",
+        "## 이벤트 기반 MAW v20",
+        "",
+        "구현 lane이 완료되면 `$codex-task commit`이 후속 이벤트를 처리합니다.",
+        "",
+        "후속 agent는 test_writer, test_runner, qa, refactor, security 중 선정됩니다.",
+        "",
+        "무조건 생성하지 않고 변경 파일, 위험도, stage 기준으로 선택합니다.",
+        "",
+        "```text",
+        "$codex-events process --for-ai",
+        "$codex-pipeline ready --for-ai",
+        "$codex-pipeline prompt",
+        "$codex-pool labels",
+        "$codex-finalize apply --for-ai",
+        "```",
+        "",
+        "## 확장 거버넌스 v21",
+        "",
+        "agent나 skill이 없으면 바로 만들지 않고 먼저 중복 검사를 합니다.",
+        "",
+        "```text",
+        "$codex-extend scan --text \"payment webhook 검증\" --for-ai",
+        "```",
+        "",
+        "`.codex` 확장은 명시 승인과 edit mode에서만 수행합니다.",
+        "",
+        "```text",
+        "$codex-edit-mode on",
+        "$codex-extend create-agent --name webhook-reviewer \\",
+        "  --purpose \"webhook 변경만 검토\" --approve --reason \"중복 없음\"",
+        "$codex-edit-mode off",
+        "```",
+        "- 구현 agent 일반화: `docs/workflows/implementation-agents.md`를 보세요."
+      ],
+      ".agents/README.md": [
+        "# .agents",
+        "",
+        "skills는 .codex/skills로 연결됩니다."
+      ],
+      ".codex/AGENTS.md": [
+        "# AGENTS",
+        "",
+        "모든 작업은 저장소 문서를 먼저 확인합니다.",
+        "문서 줄 길이는 100자를 넘기지 않습니다.",
+        "소스 파일은 200줄을 넘기지 않습니다.",
+        "프론트 컴포넌트 파일은 160줄 이하를 목표로 합니다.",
+        "React 프론트는 TypeScript와 TSX를 기본으로 사용합니다.",
+        "JS/JSX 신규 생성은 사용자가 명시한 legacy 작업일 때만 허용합니다.",
+        "중복 기능과 중복 코드는 만들지 않습니다.",
+        "스파게티 코드를 만들지 않습니다.",
+        "성질이 같은 UI는 primitive, compound, feature 컴포넌트로 추출합니다.",
+        "variant, size, tone, state, slot, render prop으로 재사용성을 만듭니다.",
+        "한 파일에 화면, 상태, API, 스타일, 검증을 모두 넣지 않습니다.",
+        "스크립트로 처리 가능한 상태 작업은 스크립트로 처리합니다.",
+        "$codex-risk classify 로 SAW/MAW 위험도를 먼저 판단합니다.",
+        "$codex-context pack --for-ai 로 현재 상태를 먼저 압축 확인합니다.",
+        "$codex-budget status 로 shortcut 출력 길이를 확인합니다.",
+        "TASKS.md, 전체 git log, 전체 diff는 사용자가 요구할 때만 넓게 읽습니다.",
+        "상태 진단은 $codex-doctor --deep --for-ai 로 스크립트가 수행합니다.",
+        "$maw는 큰 작업, 기능 분해, 병렬 lane, worktree 작업에 사용합니다.",
+        "$saw는 작은 단일 패치, 버그 수정, 작은 리팩토링에만 사용합니다.",
+        "$saw는 기본적으로 subagent chain, worktree, lane을 만들지 않습니다.",
+        "$saw는 한 TASK와 한 commit으로 끝나는 micro workflow입니다.",
+        "$saw에서 기능이 2개 이상이거나 cross-stack이면 $maw 전환을 제안합니다.",
+        "$saw는 변경 파일만 읽고, 전체 repo scan은 금지합니다.",
+        "$saw도 테스트와 보안 검사는 생략하지 않습니다.",
+        "$saw 검증은 agent가 아니라 $codex-verify gate로 수행합니다.",
+        "$saw commit은 staged quality, targeted test, security를 통과해야 합니다.",
+        "검증 실패 때만 refactor, test, security follow-up TASK를 추가합니다.",
+        "TASK 완료는 commit 연결 후에만 인정합니다.",
+        "구현 후 test, QA, quality, refactor, security 순서를 지킵니다.",
+        "SAW commit 전 $codex-verify gate --staged --mode saw --for-ai 를 통과해야 합니다.",
+        "commit 전 $codex-quality gate --staged --for-ai 를 통과해야 합니다.",
+        "보안 검사는 마지막에 반드시 수행합니다.",
+        "secret, token, private key는 절대 생성하거나 노출하지 않습니다.",
+        "",
+        "## SAW 검증 규칙",
+        "",
+        "SAW는 검증을 생략하지 않습니다.",
+        "",
+        "작은 작업도 완료 전 $codex-verify gate --mode saw 를 통과해야 합니다.",
+        "",
+        "commit 명령은 staged quality, test, security를 다시 실행합니다.",
+        "",
+        "테스트 명령이 없으면 .codex/state/verify.json에 추가합니다.",
+        "",
+        "## 토큰 예산 규칙",
+        "",
+        "SAW가 risk/budget 기준을 넘으면 MAW나 follow-up으로 분리합니다.",
+        "AI가 전체 repo를 읽기 전 $codex-context pack --for-ai 를 사용합니다.",
+        "전체 diff는 마지막 수단입니다. 먼저 name-status만 확인합니다.",
+        "",
+        "$maw budget은 전체 epic 상한이 아니라 lane/wave/PR 단위 상한입니다.",
+        "대형 신규 구현은 실패시키지 말고 wave로 나눠 순차 병합합니다.",
+        "한 wave는 $codex-lanes csv --wave W001 처럼 따로 실행합니다.",
+        "각 wave 완료 후 verify, merge, TASK commit, state commit을 수행합니다.",
+        "전체 구현 규모가 80개 파일이나 3000줄을 넘을 수 있음을 허용합니다.",
+        "하지만 한 lane이나 한 wave가 예산을 넘으면 더 작은 TASK로 분리합니다.",
+        "",
+        "## MAW agent pipeline",
+        "MAW는 feature별 구현 worker와 downstream 검증 worker로 실행합니다.",
+        "$codex-pipeline ready --for-ai",
+        "$codex-pipeline prompt",
+        "$codex-agents list",
+        "",
+        "## 이벤트 기반 MAW 규칙",
+        "",
+        "MAW는 ready queue 기반으로만 subagent를 spawn합니다.",
+        "구현 agent는 각자 맡은 산출물 구현만 수행합니다.",
+        "테스트 코드는 test_writer agent가 작성합니다.",
+        "테스트 실행은 test_runner agent가 수행합니다.",
+        "QA, refactor, security는 policy와 위험도에 따라 필요한 경우만 생성합니다.",
+        "TASK 완료 이벤트는 $codex-events process 로 후속 lane을 만듭니다.",
+        "$codex-task commit은 MAW lane commit 후 event 처리를 자동 호출합니다.",
+        "agent profile은 재사용하지만 live thread는 lane별로 짧게 사용합니다.",
+        "완료된 subagent thread는 닫아 context rot과 토큰 누적을 줄입니다.",
+        "worker_name은 사람이 알아볼 수 있게 agent-feature-stage-lane 형식으로 기록합니다.",
+        "새 $maw는 새 agent_pool_generation을 사용합니다.",
+        "",
+        "## 이벤트 기반 후속 agent",
+        "",
+        "구현 agent는 제품 코드 구현만 수행합니다.",
+        "",
+        "test_writer는 테스트 코드 작성만 수행합니다.",
+        "",
+        "test_runner는 테스트 실행과 실패 분석만 수행합니다.",
+        "",
+        "QA, refactor, security는 필요 조건이 맞을 때만 생성합니다.",
+        "",
+        "전체 마무리는 $codex-finalize apply --for-ai 로 생성합니다.",
+        "",
+        "subagent는 명시적으로 spawn해야 하며, 실행 중이면 /agent에서 확인합니다.",
+        "",
+        "## 확장 규칙",
+        "",
+        "없는 agent나 skill은 먼저 중복 검사를 합니다.",
+        "",
+        "`$codex-extend scan --text \"요청\" --for-ai`를 사용합니다.",
+        "",
+        "TASK가 완료되면 필요한 후속 agent만 동적으로 실행합니다.",
+        "",
+        "## 구현 agent 일반화",
+        "",
+        "MAW는 backend 전용 workflow가 아닙니다.",
+        "stage가 implement인 모든 agent는 다음 ready TASK를 계속 진행합니다.",
+        "예: backend, frontend, database, integration, devops, docs, performance.",
+        "custom implementer도 agent_roles.json에 등록하면 같은 규칙을 따릅니다.",
+        "검증 agent는 TASK 완료 이벤트 이후 필요한 경우에만 실행합니다.",
+        "역할 분류는 .codex/state/agent_roles.json에서 관리합니다.",
+        ""
+      ]
+    },
+    "skills": {
+      "agent-selection": [
+        "$maw와 $saw에서 기존 agent를 추천하고 재사용할 때 사용합니다.",
+        [
+          "agent는 역할입니다.",
+          "skill은 역할이 쓰는 전문 절차입니다.",
+          "사용자에게 agent별 skill을 매번 묻지 않습니다.",
+          "오케스트레이터가 필요한 skill만 자동 배정합니다.",
+          "사용자가 명시한 skill override는 우선합니다.",
+          "agent 파일은 자동 생성하지 않습니다."
+        ]
+      ],
+      "api-contract": [
+        "API 요청, 응답, 오류 계약을 정리할 때 사용합니다.",
+        [
+          "endpoint, DTO, error 형식을 먼저 고정합니다.",
+          "frontend, backend, test lane이 같은 계약을 따르게 합니다.",
+          "계약 변경은 TASK와 commit에 남깁니다."
+        ]
+      ],
+      "ci-cd": [
+        "GitHub Actions, GitLab CI, Docker 변경에 사용합니다.",
+        [
+          "CI/CD 변경은 secret 노출과 배포 위험을 먼저 봅니다.",
+          "실행 로그는 요약하고 전체 로그는 필요할 때만 읽습니다."
+        ]
+      ],
+      "codex-commands": [
+        "$codex-* 단축 명령을 모델 토큰 없이 실행할 때 사용합니다.",
+        [
+          "대화창의 $codex-* 명령은 UserPromptSubmit hook이 직접 처리합니다.",
+          "모델로 보내지 않으므로 상태 조회와 TASK 처리 토큰을 줄입니다.",
+          "자주 쓰는 명령은 $codex-context, $codex-risk, $codex-verify입니다.",
+          "예:$codex-risk classify --text \"dto 수정\" --for-ai",
+          "예:$codex-context pack --for-ai",
+          "예:$codex-budget set --shortcut-limit 2500"
+        ]
+      ],
+      "codex-edit-mode": [
+        "Codex 수정 모드를 토큰 없이 켜고 끌 때 사용합니다.",
+        [
+          "$codex-edit-mode on 은 .codex 수정을 허용합니다.",
+          "$codex-edit-mode off 는 프로젝트 수정 모드로 되돌립니다.",
+          "이 명령은 hook에서 block 처리되어 모델 토큰을 쓰지 않습니다."
+        ]
+      ],
+      "database-migration": [
+        "DB schema와 migration 변경에 사용합니다.",
+        [
+          "schema 변경은 역호환, rollback, 데이터 보호를 먼저 검토합니다.",
+          "index와 constraint 변경은 성능과 배포 순서를 함께 봅니다."
+        ]
+      ],
+      "docs": [
+        "README, API 문서, 릴리즈 노트를 작성할 때 사용합니다.",
+        [
+          "문서는 현재 언어 정책을 따릅니다.",
+          "한 줄은 100자를 넘기지 않습니다."
+        ]
+      ],
+      "git-automation": [
+        "Git 초기화, commit 추적, 비교, rollback, PR/MR 준비에 사용합니다.",
+        [
+          "TASK 완료는 commit 연결로 증명합니다.",
+          "새 commit은 $codex-task commit T001 --lane L001 로 처리합니다.",
+          "기존 commit 연결은 $codex-task link T001 HEAD 로 처리합니다.",
+          "비교는 $codex-task diff T001 --name-status 를 우선 사용합니다."
+        ]
+      ],
+      "jpa": [
+        "JPA entity, repository, query, transaction 작업에 사용합니다.",
+        [
+          "entity 변경은 migration과 함께 검토합니다.",
+          "transaction 경계와 lazy loading 위험을 확인합니다."
+        ]
+      ],
+      "language-policy": [
+        "문서 언어와 100자 줄 제한을 검증할 때 사용합니다.",
+        [
+          "$codex-language ko 또는 en 으로 언어를 바꿉니다.",
+          "언어 변경 후 README, AGENTS, SKILL 문서가 다시 생성됩니다."
+        ]
+      ],
+      "maw": [
+        "$maw 병렬 멀티 에이전트 파이프라인 워크플로우를 실행할 때 사용합니다.",
+        [
+          "$maw는 한 번에 한 질문만 합니다.",
+          "MAW는 ready queue와 TASK 완료 이벤트로 subagent를 실행합니다.",
+          "같은 구현 agent profile도 feature별 별도 worker로 실행합니다.",
+          "구현 agent는 소스 구현만 하고 테스트 작성, 실행, QA, refactor, security는 별도 agent가 합니다.",
+          "$codex-work-items apply는 기본으로 구현 lane만 만들고 downstream은 이벤트로 만듭니다.",
+          "$codex-task commit은 MAW lane 완료 후 $codex-events enqueue를 자동 호출합니다.",
+          "후속 agent는 변경 파일과 policy에 따라 필요한 것만 생성합니다.",
+          "$codex-pipeline ready --for-ai",
+          "$codex-pipeline csv --ready",
+          "$codex-pipeline prompt",
+          "TASK가 [x] 완료되고 commit이 연결된 뒤 후속 agent를 동적으로 실행합니다.",
+          "요청에 필요한 agent나 skill이 없으면 capability-extension을 사용합니다.",
+          "$codex-extend scan 로 중복 여부를 먼저 검사합니다.",
+          "TASK가 [x]가 되면 그 이벤트로 필요한 후속 agent만 생성합니다.",
+          "구현 agent는 후속 검증을 기다리지 않고 다음 ready 구현 TASK를 계속 진행합니다."
+        ]
+      ],
+      "nextjs": [
+        "Next.js 라우팅과 화면을 작게 분리합니다.",
+        [
+          "page.tsx는 data boundary와 조합만 담당합니다.",
+          "큰 UI는 features/*/components로 이동합니다.",
+          "server action과 client state를 한 파일에 섞지 않습니다."
+        ]
+      ],
+      "openapi-swagger": [
+        "OpenAPI, Swagger 문서와 REST API 계약을 만들 때 사용합니다.",
+        [
+          "Swagger 문서는 실제 구현과 일치해야 합니다.",
+          "endpoint, DTO, error response를 구현 전후에 검증합니다."
+        ]
+      ],
+      "parallel-lanes": [
+        "병렬 agent와 skill, lane, wave, pipeline 기준을 정할 때 사용합니다.",
+        [
+          "agent는 역할이고 skill은 절차입니다.",
+          "lane은 실제 병렬 실행 단위입니다.",
+          "pipeline은 lane의 dependency graph입니다.",
+          "QA, refactor, security는 구현 lane이 끝난 뒤 ready 상태가 됩니다."
+        ]
+      ],
+      "plugin-builder": [
+        "plugin으로 만들어달라는 요청을 처리할 때 사용합니다.",
+        [
+          "plugin 요청이 있을 때만 공식 plugin 절차를 확인합니다.",
+          "프로젝트 코드와 plugin scaffold를 분리합니다."
+        ]
+      ],
+      "react": [
+        "React UI를 작은 재사용 컴포넌트로 구현합니다.",
+        [
+          "컴포넌트는 단일 책임을 갖고 props로 변형을 받습니다.",
+          "page 안에 거대한 JSX와 상태 로직을 넣지 않습니다.",
+          "공통 UI는 src/components/ui 아래로 분리합니다."
+        ]
+      ],
+      "refactor-clean-code": [
+        "리팩토링, 클린 코드, 중복 제거, 200줄 제한 검토에 사용합니다.",
+        [
+          "구현, 테스트, QA, quality gate 이후에만 리팩토링합니다.",
+          "$codex-refactor analyze --for-ai 결과가 필요할 때만 수행합니다.",
+          "동작 변경, 공개 API 변경, DB 계약 변경은 승인 없이 하지 않습니다.",
+          "중복 제거, 함수 분리, 이름 정리, 책임 분리를 우선합니다.",
+          "프론트는 primitive, feature component, hook, api client로 분리합니다.",
+          "리팩토링 후 테스트와 $codex-quality gate --for-ai 를 다시 실행합니다."
+        ]
+      ],
+      "rollback": [
+        "단일 TASK revert와 전체 rollback에 사용합니다.",
+        [
+          "먼저 $codex-task trace --for-ai 로 연결 상태를 봅니다.",
+          "단일 TASK rollback은 $codex-task revert-task T001 을 사용합니다."
+        ]
+      ],
+      "saw": [
+        "$saw 초저토큰 단일 작업 워크플로우를 실행할 때 사용합니다.",
+        [
+          "$saw는 작은 수정, 단일 버그, 좁은 리팩토링에 사용합니다.",
+          "SAW는 검증을 생략하지 않습니다.",
+          "SAW는 검증을 agent chain으로 늘리지 않습니다.",
+          "기본은 primary agent 하나와 TASK 하나입니다.",
+          "test, qa, security TASK는 기본 생성하지 않습니다.",
+          "대신 $codex-verify gate가 필수 검증을 수행합니다.",
+          "검증 항목은 staged quality, targeted test, staged security입니다.",
+          "테스트 명령이 없고 코드가 바뀌면 gate는 실패해야 합니다.",
+          "필요 테스트 명령은 .codex/state/verify.json에 설정합니다.",
+          "기능이 둘 이상이면 MAW 전환을 제안합니다.",
+          "기본 budget은 6개 파일, 코드 4개 파일, 260줄 변경입니다.",
+          "한 번에 한 질문만 합니다.",
+          "skill은 primary agent 기준으로 필요한 것만 자동 선정합니다.",
+          "완료는 TASK commit 연결로 처리합니다.",
+          "commit 시 verify gate가 다시 실행됩니다.",
+          "예:$codex-saw suggest --text \"dto 필드 매핑 오류 수정\"",
+          "예:$codex-verify gate --staged --for-ai",
+          "예:$codex-task commit T001 --message \"fix dto mapping\""
+        ]
+      ],
+      "security-gate": [
+        "보안 위험과 민감 정보 유출을 검사합니다.",
+        [
+          "$codex-security gate와 $codex-quality gate --for-ai를 실행합니다.",
+          "token, secret, private key, 권한 변경, 배포 유출 위험을 보고합니다.",
+          "보안 이슈가 있으면 commit하지 않고 수정 TASK를 만듭니다."
+        ]
+      ],
+      "spring-boot": [
+        "Spring Boot 서버 구현과 설정에 사용합니다.",
+        [
+          "Controller, service, domain 범위를 TASK 안에 제한합니다.",
+          "Swagger, JPA, test skill은 필요할 때만 함께 사용합니다."
+        ]
+      ],
+      "task-trace": [
+        "TASK, lane, commit 연결과 변경 추적에 사용합니다.",
+        [
+          "TASK는 commit과 연결되어야 완료됩니다.",
+          "lane 작업은 lane id와 함께 commit합니다.",
+          "TASKS.md는 사람용 요약이고 원본은 JSONL입니다.",
+          "변경 파일은 commit별 A/M/D/R 요약으로만 기록합니다."
+        ]
+      ],
+      "test-generation": [
+        "핵심 로직 테스트를 추가할 때 사용합니다.",
+        [
+          "비즈니스 로직, 계산, 권한, 상태 전이, DTO 변환만 우선합니다.",
+          "단순 getter, framework wiring 테스트는 만들지 않습니다."
+        ]
+      ],
+      "quality-gate": [
+        "코드 품질, 보안, 중복, 대형 파일, 스파게티 위험을 검사할 때 사용합니다.",
+        [
+          "구현 후 QA 단계에서 $codex-quality gate --for-ai 를 먼저 실행합니다.",
+          "fail이면 refactor 또는 security TASK를 만들어 수정합니다.",
+          "한 파일 200줄 초과, 프론트 파일 160줄 초과, 중복 의심은 실패 기준입니다.",
+          "TODO, FIXME, secret, token, password 흔적은 반드시 정리합니다.",
+          "전체 diff를 문서에 붙이지 말고 스크립트 요약만 사용합니다.",
+          "$codex-quality analyze --task T001 --for-ai",
+          "React 프론트는 .ts/.tsx 사용 여부를 확인합니다.",
+          "page가 API, 상태, 스타일, 검증을 모두 들고 있으면 리팩토링합니다.",
+          "같은 성향의 UI가 반복되면 컴포넌트 추출을 요구합니다."
+        ]
+      ],
+      "frontend-component-architecture": [
+        "성질이 같은 프론트 UI를 재사용 가능한 컴포넌트 조합으로 만들 때 사용합니다.",
+        [
+          "page와 screen은 route composition만 담당합니다.",
+          "primitive는 Button처럼 최소 UI 의미와 접근성을 담당합니다.",
+          "compound는 Modal.Header, Table.Row처럼 함께 쓰는 조각을 묶습니다.",
+          "feature 컴포넌트는 도메인 UI를 primitive와 compound로 조합합니다.",
+          "같은 성향의 UI는 이름이 달라도 하나의 컴포넌트로 합칠 수 있는지 봅니다.",
+          "variant, size, tone, state, slot, render prop으로 차이를 흡수합니다.",
+          "상태 로직은 hook으로 분리하고 API 호출은 service 또는 client로 분리합니다.",
+          "폼, 테이블, 카드, 필터, 툴바, 빈 상태, 로딩, 에러 UI도 재사용 대상입니다.",
+          "한 컴포넌트가 160줄을 넘으면 반드시 쪼갭니다.",
+          "동일한 JSX 패턴이 3회 이상 반복되면 공통 컴포넌트로 추출합니다."
+        ]
+      ],
+      "frontend-typescript": [
+        "React 프론트를 TypeScript와 TSX 기준으로 만들 때 사용합니다.",
+        [
+          "신규 React UI 파일은 .tsx를 사용합니다.",
+          "JSX가 없는 로직, 타입, client, hook 보조 파일은 .ts를 사용합니다.",
+          "신규 .js 또는 .jsx 파일은 legacy 작업을 사용자가 명시한 경우만 허용합니다.",
+          "props, DTO, event, API response 타입을 명시합니다.",
+          "any, as any, 암묵적 객체 shape 의존을 금지합니다.",
+          "tsconfig는 jsx 옵션과 strict 타입 검사를 확인합니다."
+        ]
+      ],
+      "verify-gate": [
+        "SAW와 TASK 완료 전에 quality, test, security를 검증합니다.",
+        [
+          "SAW는 테스트와 보안을 생략하지 않습니다.",
+          "검증은 $codex-verify가 우선 처리합니다.",
+          "SAW는 staged 파일 기준으로 빠르게 검사합니다.",
+          "MAW는 통합 단계에서 더 넓은 검증을 실행합니다.",
+          "test command가 없으면 .codex/state/verify.json에 추가합니다.",
+          "예:$codex-verify gate --staged --mode saw --for-ai"
+        ]
+      ],
+      "context-control": [
+        "토큰 절약을 위해 상태와 변경 범위를 압축해 확인할 때 사용합니다.",
+        [
+          "AI는 상태 파일과 긴 diff를 직접 넓게 읽지 않습니다.",
+          "먼저 $codex-context pack --for-ai 를 실행합니다.",
+          "현재 TASK, agent, skill, 변경 파일, git 상태를 짧게 확인합니다.",
+          "TASK 추적은 $codex-task trace --for-ai 를 사용합니다.",
+          "SAW는 필요한 파일만 읽고 전체 저장소 scan을 피합니다.",
+          "전체 diff는 사용자가 명시하거나 gate 실패 때만 확인합니다.",
+          "예:$codex-context pack --for-ai"
+        ]
+      ],
+      "token-budget": [
+        "SAW/MAW 변경량, 출력 길이, wave 예산을 관리합니다.",
+        [
+          "SAW 예산은 작업 전체의 상한입니다.",
+          "MAW 예산은 전체 epic 상한이 아닙니다.",
+          "MAW 예산은 lane, wave, PR/MR 단위의 안전 상한입니다.",
+          "대형 신규 구현은 여러 wave로 나눠 처리합니다.",
+          "$codex-budget status 로 현재 제한을 확인합니다.",
+          "$codex-budget suggest --text \"요청\" --for-ai 로 예상 분해를 봅니다.",
+          "$codex-waves assign 으로 lane에 wave를 배정합니다.",
+          "$codex-lanes csv --wave W002 로 특정 wave만 실행합니다."
+        ]
+      ],
+      "context-pack": [
+        "AI가 전체 repo를 읽지 않고 필요한 TASK와 변경 파일만 보게 합니다.",
+        [
+          "$codex-context pack --for-ai 로 workflow, TASK, 변경 파일만 봅니다.",
+          "긴 TASKS.md와 전체 diff는 사용자가 요구할 때만 읽습니다.",
+          "SAW에서는 context pack을 보고 필요한 파일만 읽습니다.",
+          "MAW lane에서도 각 lane worktree 기준 context pack을 사용합니다."
+        ]
+      ],
+      "wave-budget": [
+        "대형 MAW 작업을 wave 단위로 분할할 때 사용합니다.",
+        [
+          "대형 신규 생성은 전체 epic 기준으로 막지 않습니다.",
+          "한 번에 실행하는 wave만 예산을 적용합니다.",
+          "한 lane이 커지면 기능을 더 작게 나눕니다.",
+          "contract와 schema는 backend feature lane보다 먼저 실행합니다.",
+          "test, QA, security는 구현 wave 뒤에 실행합니다.",
+          "$codex-waves plan 으로 wave 구성을 확인합니다.",
+          "$codex-waves next 로 다음 wave를 확인합니다.",
+          "$codex-lanes prepare --wave W002 로 특정 wave만 준비합니다."
+        ]
+      ],
+      "agent-pipeline": [
+        "MAW에서 구현 agent 결과를 QA, refactor, security agent로 넘길 때 사용합니다.",
+        [
+          "MAW agent pipeline은 고정 stage 목록이 아니라 event-driven queue입니다.",
+          "ready lane만 CSV로 만들고 subagent를 spawn합니다.",
+          "worker_name은 사람이 알아볼 수 있는 agent-feature-stage-lane 이름입니다.",
+          "완료된 subagent thread는 닫아 context rot을 줄입니다.",
+          "$codex-events workers --for-ai",
+          "$codex-pipeline ready --for-ai",
+          "$codex-pipeline prompt"
+        ]
+      ],
+      "event-driven-maw": [
+        "TASK 완료 이벤트로 필요한 후속 agent를 동적으로 선정합니다.",
+        [
+          "$codex-events process --for-ai",
+          "구현 agent는 구현만 수행합니다.",
+          "테스트 작성, 테스트 실행, QA, 리팩터, 보안은 후속 이벤트로 생성합니다.",
+          "QA, 리팩터, 보안은 무조건 생성하지 않고 변경 파일과 위험도로 판단합니다.",
+          "ready queue는 $codex-pipeline ready --for-ai로 확인합니다.",
+          "spawn 시 worker_label과 reuse_key를 사용해 사람이 알아볼 수 있게 합니다.",
+          "QA, refactor, security는 무조건이 아니라 변경 파일과 위험도에 따라 선택합니다."
+        ]
+      ],
+      "agent-pool": [
+        "MAW agent thread 이름, 재사용 정책, 종료 기준을 관리합니다.",
+        [
+          "$codex-pool policy",
+          "$codex-pool set-mode scoped_fresh",
+          "기본은 agent 정의 재사용, 대화 context는 lane별 fresh입니다.",
+          "role_thread 모드는 비용보다 지속성이 중요할 때만 사용합니다.",
+          "새 $maw workflow에서는 pool을 새로 시작하고 완료 thread는 닫습니다."
+        ]
+      ],
+      "extension-governance": [
+        "agent나 skill이 없을 때 중복 검증 후 승인 기반으로 생성합니다.",
+        [
+          "요청에 맞는 agent나 skill이 없을 때만 사용합니다.",
+          "$codex-extend scan 으로 기존 agent와 skill을 먼저 비교합니다.",
+          "비슷한 항목이 있으면 새로 만들지 않고 재사용하거나 보완합니다.",
+          "중복이 없고 목적이 명확할 때만 --approve 로 생성합니다.",
+          "새 agent는 자기 역할만 수행하고 인접 역할을 넘지 않습니다.",
+          "새 skill은 주의사항, 클린 코드, 금지 패턴을 포함합니다.",
+          "MAW는 TASK 완료 이벤트 뒤 필요한 후속 agent만 실행합니다."
+        ]
+      ],
+      "worker-pool": [
+        "MAW worker 이름, 재사용 범위, clear 정책을 다룰 때 사용합니다.",
+        [
+          "agent TOML 파일은 재사용 가능한 역할 정의입니다.",
+          "subagent thread는 실제 실행 worker이며 토큰을 씁니다.",
+          "worker는 같은 MAW workflow 안에서만 제한적으로 재사용합니다.",
+          "서로 관련 없는 새 `$maw` 작업에는 이전 worker를 재사용하지 않습니다.",
+          "이름은 `백엔드-order-구현-L002`처럼 사람이 읽게 만듭니다.",
+          "`$codex-pool status`로 label과 reuse_key를 확인합니다."
+        ]
+      ],
+      "capability-extension": [
+        "필요한 agent나 skill이 없을 때 중복 검토 후 확장할 때 사용합니다.",
+        [
+          "먼저 $codex-capabilities inspect 로 기존 agent와 skill의 유사도를 확인합니다.",
+          "유사 agent나 skill이 있으면 새로 만들지 않고 기존 capability를 재사용합니다.",
+          "새 agent는 하나의 사명만 가져야 하며 다른 agent 책임을 침범하지 않습니다.",
+          "새 skill은 하나의 반복 workflow만 담당해야 합니다.",
+          "skill에는 목적, 트리거, 입력, 출력, 절차, 금지사항, 검증을 적습니다.",
+          "그 분야 전문가가 권장하는 모듈 경계와 clean code 원칙을 명확히 적습니다.",
+          "스파게티 코드, 거대 파일, 중복 로직, 숨은 부작용을 금지합니다.",
+          "생성은 $codex-edit-mode on 상태에서 --approve를 붙인 경우만 허용합니다.",
+          "$codex-extend create-agent --name name --purpose \"purpose\" --approve",
+          "$codex-extend create-skill --name name --purpose \"purpose\" --domain \"domain\" --approve",
+          "생성 후 $codex-agents check 와 $codex-skills list 로 확인합니다."
+        ]
+      ]
+    },
+    "agents": {
+      "architecture": [
+        "아키텍처와 작업 분해를 담당합니다.",
+        "요구사항을 구조화하고 경계를 나눕니다. 구현 파일은 최소로 수정합니다."
+      ],
+      "backend": [
+        "서버 API, 서비스, 도메인 로직을 담당합니다.",
+        "백엔드 코드만 수정합니다. 필요한 skill만 사용합니다."
+      ],
+      "database": [
+        "DB 스키마, 마이그레이션, 쿼리를 담당합니다.",
+        "DB 변경은 역호환, 롤백, 데이터 보호를 먼저 검토합니다."
+      ],
+      "devops": [
+        "CI/CD, Docker, 배포 파이프라인을 담당합니다.",
+        "배포 설정만 다루고 secret 노출을 막습니다."
+      ],
+      "docs": [
+        "README, API 문서, 릴리즈 노트를 담당합니다.",
+        "언어 정책과 100자 줄 제한을 지킵니다."
+      ],
+      "frontend": [
+        "프론트 UI, TSX 컴포넌트, hook, client 분리를 담당합니다.",
+        "React 프론트는 TS/TSX를 사용합니다. UI는 성질별로 쪼개고 page는 조합만 합니다."
+      ],
+      "git": [
+        "브랜치, 커밋, 비교, 롤백을 담당합니다.",
+        "히스토리 비교, 안전한 revert, PR/MR 준비를 관리합니다."
+      ],
+      "integration": [
+        "외부 API, 이벤트, 메시징 연동을 담당합니다.",
+        "계약, 재시도, 타임아웃, 장애 격리를 우선 검토합니다."
+      ],
+      "performance": [
+        "성능 병목, 캐시, 쿼리 비용을 담당합니다.",
+        "측정 가능한 성능 개선과 회귀 위험을 검토합니다."
+      ],
+      "qa": [
+        "요구사항, 회귀, 품질 gate, 리팩토링 필요 여부를 검증합니다.",
+        "품질, 리팩토링, 보안 gate 결과를 확인하고 완료 가능 여부를 판단합니다."
+      ],
+      "refactor": [
+        "동작 보존 리팩토링과 중복 제거를 담당합니다.",
+        "테스트와 QA 이후에만 동작 보존 리팩토링을 수행합니다. 중복, 대형 파일, 스파게티 구조, 프론트 컴포넌트 폭주를 정리합니다."
+      ],
+      "security": [
+        "인증, 권한, secret, 취약점 검사를 담당합니다.",
+        "민감 정보 유출, 권한 상승, 입력 검증, 위험 의존성, 배포 유출을 점검합니다. 보안 이슈가 있으면 완료하지 않습니다."
+      ],
+      "test": [
+        "기존 호환용 테스트 보조 agent입니다.",
+        "새 MAW에서는 test_writer와 test_runner를 우선 사용합니다."
+      ],
+      "test_writer": [
+        "완료된 구현 TASK에 필요한 테스트 코드만 작성합니다.",
+        "테스트 코드 작성만 담당합니다. 제품 코드, 리팩토링, 보안 수정은 하지 않습니다."
+      ],
+      "test_runner": [
+        "테스트 실행, 실패 분석, 최소 수정 제안을 담당합니다.",
+        "테스트 실행과 실패 분석만 담당합니다. 제품 구현은 하지 않습니다."
+      ],
+      "capability_manager": [
+        "agent와 skill 확장 요청을 검토하고 중복 생성을 막습니다.",
+        "agent와 skill 생성 요청을 검토합니다. 중복 역할과 흐릿한 책임을 거부합니다."
+      ]
+    }
+  },
+  "en": {
+    "files": {
+      "README.md": [
+        "# Codex Git AI Automation Template",
+        "",
+        "Single ZIP template.",
+        "",
+        "Switch language with `$codex-language ko` or `$codex-language en`.",
+        "",
+        "## Quick start",
+        "",
+        "```bash",
+        "python3 .codex/script/setup_links.py",
+        "```",
+        "",
+        "Use `$codex-*` commands for state, TASK, gate, and trace work.",
+        "",
+        "These commands are handled by hooks and scripts to reduce model tokens.",
+        "",
+        "```text",
+        "$codex-doctor --deep --for-ai",
+        "$codex-context pack --for-ai",
+        "$codex-verify gate --staged --mode saw --for-ai",
+        "```",
+        "",
+        "## Workflows",
+        "",
+        "Use MAW for large feature work.",
+        "",
+        "```text",
+        "$maw spring boot shop order payment rest api",
+        "```",
+        "",
+        "Use SAW for small single patches.",
+        "",
+        "```text",
+        "$codex-saw init --title fix --branch hotfix/fix --text \"fix dto\"",
+        "$codex-saw prompt",
+        "```",
+        "",
+        "## Event-driven MAW v20",
+        "",
+        "Implementation lanes finish with `$codex-task commit`.",
+        "",
+        "That command triggers the event bus and creates needed downstream lanes.",
+        "",
+        "Downstream agents include test_writer, test_runner, qa, refactor, security.",
+        "",
+        "They are selected by changed files, risk, and stage, not created blindly.",
+        "",
+        "```text",
+        "$codex-events process --for-ai",
+        "$codex-pipeline ready --for-ai",
+        "$codex-pipeline prompt",
+        "$codex-pool labels",
+        "$codex-finalize apply --for-ai",
+        "```",
+        "",
+        "## Docs",
+        "",
+        "Open `docs/index.html` for the searchable wiki.",
+        "",
+        "Markdown sources live under `docs/`.",
+        "",
+        "## Extension governance v21",
+        "",
+        "Do not create a missing agent or skill before duplicate checks.",
+        "",
+        "```text",
+        "$codex-extend scan --text \"payment webhook review\" --for-ai",
+        "```",
+        "",
+        "`.codex` extension requires approval and edit mode.",
+        "",
+        "```text",
+        "$codex-edit-mode on",
+        "$codex-extend create-agent --name webhook-reviewer \\",
+        "  --purpose \"review webhook changes only\" --approve --reason \"unique scope\"",
+        "$codex-edit-mode off",
+        "```",
+        "- Generic implementers: see `docs/workflows/implementation-agents.md`."
+      ],
+      ".agents/README.md": [
+        "# .agents",
+        "",
+        "skills is linked to .codex/skills."
+      ],
+      ".codex/AGENTS.md": [
+        "# AGENTS",
+        "",
+        "Read repository docs before writing code.",
+        "Keep Markdown lines under 100 characters.",
+        "Keep source files under 200 lines.",
+        "Keep frontend component files near 160 lines.",
+        "React frontend code must use TypeScript and TSX.",
+        "Do not create new JS/JSX unless the user names a legacy task.",
+        "Do not create duplicate features or duplicate code.",
+        "Do not create spaghetti code.",
+        "Extract same-nature UI into primitive, compound, or feature components.",
+        "Use variant, size, tone, state, slot, and render prop patterns.",
+        "Do not put page, state, API, style, and validation in one file.",
+        "Use scripts for state work that scripts can handle.",
+        "Use `$codex-context pack --for-ai` before reading broad context.",
+        "Use `$maw` for large, parallel, feature-split work.",
+        "Use `$saw` for small single patches only.",
+        "SAW does not skip verification.",
+        "SAW uses script gates instead of agent chains.",
+        "TASK completion requires a linked commit.",
+        "",
+        "## Event-driven MAW",
+        "",
+        "MAW spawns only ready queue lanes.",
+        "Implementer agents only create their assigned deliverables.",
+        "test_writer writes test code only.",
+        "test_runner runs tests and analyzes failures only.",
+        "QA, refactor, and security are created only when policy and risk require them.",
+        "TASK completion events are processed by `$codex-events process`.",
+        "`$codex-task commit` processes MAW events after lane commits.",
+        "Agent profiles are reused, but live threads should stay short by default.",
+        "Close completed subagent threads to avoid context rot and token growth.",
+        "worker_name uses agent-feature-stage-lane so people can identify the work.",
+        "Each new `$maw` uses a new agent_pool_generation.",
+        "",
+        "## Finalization",
+        "",
+        "Run `$codex-finalize apply --for-ai` near the end of a MAW workflow.",
+        "It creates final refactor and security sweeps when the workflow is ready.",
+        "",
+        "## Extension rules",
+        "",
+        "Check duplicates before adding an agent or skill.",
+        "",
+        "Use `$codex-extend scan --text \"request\" --for-ai` first.",
+        "",
+        "When a TASK is done, run only required downstream agents.",
+        "",
+        "## Generic implementation agents",
+        "",
+        "MAW is not a backend-only workflow.",
+        "Every agent with stage=implement continues the next ready TASK.",
+        "Examples: backend, frontend, database, integration, devops, docs, performance.",
+        "A custom implementer follows this rule when registered in agent_roles.json.",
+        "Verification agents run after TASK completion events only when needed.",
+        "Role groups are managed in .codex/state/agent_roles.json.",
+        ""
+      ]
+    },
+    "skills": {
+      "agent-selection": [
+        "Use existing agents for $maw and $saw recommendations.",
+        [
+          "An agent is a role.",
+          "A skill is a specialist procedure used by that role.",
+          "Do not ask the user to select skills for every agent.",
+          "The orchestrator auto-picks only needed skills.",
+          "Explicit user skill overrides take precedence.",
+          "Do not create agent files automatically."
+        ]
+      ],
+      "api-contract": [
+        "Use this to define API requests, responses, and errors.",
+        [
+          "Lock endpoints, DTOs, and error shapes first.",
+          "Frontend, backend, and test lanes must share the same contract.",
+          "Contract changes must be linked to a TASK and commit."
+        ]
+      ],
+      "ci-cd": [
+        "Use this for GitHub Actions, GitLab CI, and Docker changes.",
+        [
+          "Review secret exposure and deployment risk first.",
+          "Summarize logs and read full logs only when needed."
+        ]
+      ],
+      "codex-commands": [
+        "Use $codex-* shortcuts without sending workflow commands to the model.",
+        [
+          "$codex-* prompts are handled by the UserPromptSubmit hook.",
+          "They reduce tokens for state, TASK, and gate operations.",
+          "Frequent commands are $codex-context, $codex-risk, and $codex-verify.",
+          "Example:$codex-risk classify --text \"fix dto\" --for-ai",
+          "Example:$codex-context pack --for-ai",
+          "Example:$codex-budget set --shortcut-limit 2500"
+        ]
+      ],
+      "codex-edit-mode": [
+        "Use this to toggle Codex edit mode without model tokens.",
+        [
+          "$codex-edit-mode on allows .codex maintenance.",
+          "$codex-edit-mode off returns to project edit mode.",
+          "The hook blocks the prompt so no model tokens are used."
+        ]
+      ],
+      "database-migration": [
+        "Use this for DB schema and migration changes.",
+        [
+          "Check compatibility, rollback, and data safety first.",
+          "Review index and constraint changes with deployment order."
+        ]
+      ],
+      "docs": [
+        "Use this for README, API docs, and release notes.",
+        [
+          "Follow the current language policy.",
+          "Keep every Markdown line under 100 characters."
+        ]
+      ],
+      "git-automation": [
+        "Use this for Git init, commit trace, diff, rollback, and PR/MR prep.",
+        [
+          "A TASK is complete only when linked to a commit.",
+          "Create commits with $codex-task commit T001 --lane L001.",
+          "Link existing commits with $codex-task link T001 HEAD.",
+          "Prefer $codex-task diff T001 --name-status for comparisons."
+        ]
+      ],
+      "jpa": [
+        "Use this for JPA entities, repositories, queries, and transactions.",
+        [
+          "Review entity changes with migrations.",
+          "Check transaction boundaries and lazy loading risks."
+        ]
+      ],
+      "language-policy": [
+        "Use this to validate language and 100 character Markdown lines.",
+        [
+          "Use $codex-language ko or en to switch language.",
+          "After switching, README, AGENTS, and SKILL files are regenerated."
+        ]
+      ],
+      "maw": [
+        "Use for the $maw parallel multi-agent pipeline workflow.",
+        [
+          "$maw asks one question at a time.",
+          "MAW runs subagents from a ready queue and TASK completion events.",
+          "The same implementer profile can run as separate feature workers.",
+          "Implementation agents only implement source code; test writing, running, QA, refactor, and security use separate agents.",
+          "$codex-work-items apply creates implementation lanes by default; downstream lanes are event driven.",
+          "$codex-task commit automatically calls $codex-events enqueue after MAW lane completion.",
+          "Downstream agents are created only when changed files and policy require them.",
+          "$codex-pipeline ready --for-ai",
+          "$codex-pipeline csv --ready",
+          "$codex-pipeline prompt",
+          "Run downstream agents dynamically only after TASK [x] and commit link.",
+          "Use capability-extension when a required agent or skill is missing.",
+          "Run $codex-extend scan before creating anything new.",
+          "When a TASK becomes [x], create only needed downstream agents.",
+          "Implementer agents keep working on the next ready implementation TASK while reviewers run."
+        ]
+      ],
+      "nextjs": [
+        "Splits Next.js routes and screens cleanly.",
+        [
+          "page.tsx should only handle boundaries and composition.",
+          "Move large UI to features/*/components.",
+          "Do not mix server actions and client state in one large file."
+        ]
+      ],
+      "openapi-swagger": [
+        "Use this for OpenAPI, Swagger, and REST API contracts.",
+        [
+          "Swagger docs must match the actual implementation.",
+          "Validate endpoints, DTOs, and error responses before and after coding."
+        ]
+      ],
+      "parallel-lanes": [
+        "Use when deciding agent, skill, lane, wave, and pipeline boundaries.",
+        [
+          "Agents are roles and skills are procedures.",
+          "A lane is the real parallel unit.",
+          "A pipeline is the dependency graph of lanes.",
+          "QA, refactor, and security become ready after implementation lanes finish."
+        ]
+      ],
+      "plugin-builder": [
+        "Use this when the user asks to build a plugin.",
+        [
+          "Check the official plugin process only for plugin requests.",
+          "Keep project code separate from plugin scaffold code."
+        ]
+      ],
+      "react": [
+        "Implements React UI with small reusable components.",
+        [
+          "Components have one responsibility and accept variants through props.",
+          "Do not place huge JSX and state logic inside page files.",
+          "Move common UI into src/components/ui."
+        ]
+      ],
+      "refactor-clean-code": [
+        "Use for refactoring, clean code, duplicate removal, and file size checks.",
+        [
+          "Refactor only after implementation, tests, QA, and the quality gate.",
+          "Run $codex-refactor analyze --for-ai and act only when needed.",
+          "Do not change behavior, public APIs, or DB contracts without approval.",
+          "Prioritize duplicate removal, function splitting, naming, and responsibility split.",
+          "For frontend, split primitives, feature components, hooks, and API clients.",
+          "After refactoring, rerun tests and $codex-quality gate --for-ai."
+        ]
+      ],
+      "rollback": [
+        "Use this for single TASK revert and full rollback.",
+        [
+          "First run $codex-task trace --for-ai to check links.",
+          "Use $codex-task revert-task T001 for a single TASK rollback."
+        ]
+      ],
+      "saw": [
+        "Use this for the low-token $saw single workflow.",
+        [
+          "$saw is for small fixes, one bug, or narrow refactors.",
+          "SAW does not skip verification.",
+          "SAW does not expand verification into an agent chain.",
+          "The default is one primary agent and one TASK.",
+          "It does not create test, QA, or security TASKs by default.",
+          "Instead, $codex-verify gate performs mandatory verification.",
+          "The checks are staged quality, targeted test, and staged security.",
+          "If code changed and no test command exists, the gate must fail.",
+          "Set test commands in .codex/state/verify.json.",
+          "If there is more than one feature, recommend MAW.",
+          "The default budget is 6 files, 4 code files, and 260 changed lines.",
+          "Ask one question at a time.",
+          "Select only skills needed by the primary agent.",
+          "Completion is handled by TASK commit linking.",
+          "The commit command re-runs the verify gate.",
+          "Example:$codex-saw suggest --text \"fix dto field mapping\"",
+          "Example:$codex-verify gate --staged --for-ai",
+          "Example:$codex-task commit T001 --message \"fix dto mapping\""
+        ]
+      ],
+      "security-gate": [
+        "Checks security risk and sensitive leaks.",
+        [
+          "Run $codex-security gate and $codex-quality gate --for-ai.",
+          "Report tokens, secrets, private keys, permission changes, and deploy leaks.",
+          "Do not commit when security issues remain."
+        ]
+      ],
+      "spring-boot": [
+        "Use this for Spring Boot server implementation and config.",
+        [
+          "Limit controller, service, and domain edits to the TASK scope.",
+          "Use Swagger, JPA, and test skills only when needed."
+        ]
+      ],
+      "task-trace": [
+        "Use this for TASK, lane, commit, and change tracking.",
+        [
+          "A TASK needs a commit link before completion.",
+          "Commit lane work with the lane id.",
+          "TASKS.md is human-facing; JSONL files are the source of truth.",
+          "Track changed files as compact A/M/D/R summaries per commit."
+        ]
+      ],
+      "test-generation": [
+        "Use this to add core logic tests.",
+        [
+          "Prioritize business, calculation, permission, state, and DTO conversion tests.",
+          "Do not write tests for trivial getters or framework wiring."
+        ]
+      ],
+      "quality-gate": [
+        "Use for code quality, security, duplication, oversized files, and spaghetti risks.",
+        [
+          "After implementation, run $codex-quality gate --for-ai during QA.",
+          "If it fails, create a refactor or security TASK and fix it.",
+          "Files over 200 lines, frontend files over 160 lines, and duplicates are failures.",
+          "Remove TODO, FIXME, secret, token, and password traces.",
+          "Do not paste full diffs into docs. Use short script summaries.",
+          "$codex-quality analyze --task T001 --for-ai",
+          "Check whether React frontend uses .ts and .tsx.",
+          "Refactor pages that own API, state, style, and validation together.",
+          "Require extraction when same-nature UI repeats."
+        ]
+      ],
+      "frontend-component-architecture": [
+        "Use this to compose same-nature frontend UI from reusable components.",
+        [
+          "Pages and screens only handle route composition.",
+          "Primitives own minimal UI meaning and accessibility, such as Button.",
+          "Compounds group parts used together, such as Modal.Header or Table.Row.",
+          "Feature components compose domain UI from primitives and compounds.",
+          "Even with different names, merge UI with the same nature when possible.",
+          "Absorb differences with variant, size, tone, state, slot, and render props.",
+          "Move state logic to hooks and API calls to typed services or clients.",
+          "Forms, tables, cards, filters, toolbars, empty, loading, and error UI are reusable.",
+          "Split a component when it exceeds 160 lines.",
+          "Extract repeated JSX patterns after three occurrences."
+        ]
+      ],
+      "frontend-typescript": [
+        "Use this when building React frontend with TypeScript and TSX.",
+        [
+          "Use .tsx for new React UI files.",
+          "Use .ts for logic, types, clients, and hooks that do not contain JSX.",
+          "New .js or .jsx files are allowed only for explicit legacy work.",
+          "Type props, DTOs, events, and API responses.",
+          "Disallow any, as any, and implicit object shape dependency.",
+          "Check the jsx option and strict type checks in tsconfig."
+        ]
+      ],
+      "verify-gate": [
+        "Verify quality, tests, and security before SAW or TASK completion.",
+        [
+          "SAW never skips tests or security.",
+          "$codex-verify is the primary verification command.",
+          "SAW verifies staged files for a fast loop.",
+          "MAW runs wider verification during integration.",
+          "Add missing test commands to .codex/state/verify.json.",
+          "Example:$codex-verify gate --staged --mode saw --for-ai"
+        ]
+      ],
+      "context-control": [
+        "Use this to compress state and change scope before model work.",
+        [
+          "Do not make the model read long state files or full diffs by default.",
+          "Run $codex-context pack --for-ai first.",
+          "Read the current TASK, agent, skills, changed files, and git state briefly.",
+          "Use $codex-task trace --for-ai for TASK tracking.",
+          "SAW reads only the files needed for the small patch.",
+          "Read full diffs only when requested or when a gate fails.",
+          "Example:$codex-context pack --for-ai"
+        ]
+      ],
+      "token-budget": [
+        "Manage SAW/MAW scope, shortcut output length, and wave budget.",
+        [
+          "SAW budget is the whole patch limit.",
+          "MAW budget is not the whole epic limit.",
+          "MAW budget is a safety limit for one lane, wave, or PR/MR.",
+          "Split large greenfield work into multiple waves.",
+          "$codex-budget status shows limits.",
+          "$codex-budget suggest --text \"request\" --for-ai shows routing.",
+          "$codex-waves assign assigns waves to lanes.",
+          "$codex-lanes csv --wave W002 runs one wave."
+        ]
+      ],
+      "context-pack": [
+        "Let AI see only the needed TASK and changed files, not the whole repo.",
+        [
+          "$codex-context pack --for-ai shows workflow, TASK, and file context.",
+          "Read long TASKS.md and full diff only when the user asks.",
+          "In SAW, read the context pack before choosing files.",
+          "In MAW, use a context pack inside each lane worktree."
+        ]
+      ],
+      "wave-budget": [
+        "Use this when a large MAW task must be split into waves.",
+        [
+          "Do not block a large epic by the total expected size.",
+          "Apply budget only to the wave being executed.",
+          "Split an oversized lane into smaller feature lanes.",
+          "Run contract and schema before backend feature lanes.",
+          "Run test, QA, and security after implementation waves.",
+          "$codex-waves plan shows the wave layout.",
+          "$codex-waves next shows the next wave.",
+          "$codex-lanes prepare --wave W002 prepares one wave."
+        ]
+      ],
+      "agent-pipeline": [
+        "Use when passing implementation agent results to QA, refactor, and security agents.",
+        [
+          "The MAW agent pipeline is an event-driven queue, not a fixed stage list.",
+          "Only ready lanes are exported to CSV and spawned as subagents.",
+          "worker_name is a human-readable agent-feature-stage-lane label.",
+          "Close completed subagent threads to reduce context rot.",
+          "$codex-events workers --for-ai",
+          "$codex-pipeline ready --for-ai",
+          "$codex-pipeline prompt"
+        ]
+      ],
+      "event-driven-maw": [
+        "Selects downstream agents dynamically from TASK completion events.",
+        [
+          "$codex-events process --for-ai",
+          "Implementation agents only implement.",
+          "Test writing, test running, QA, refactor, and security are event driven.",
+          "QA, refactor, and security are selected by changed files and risk.",
+          "Use $codex-pipeline ready --for-ai to inspect the ready queue.",
+          "Use worker_label and reuse_key so people can identify each worker.",
+          "QA, refactor, and security are selected by files and risk, not always."
+        ]
+      ],
+      "agent-pool": [
+        "Manages MAW worker labels, reuse policy, and close rules.",
+        [
+          "$codex-pool policy",
+          "$codex-pool set-mode scoped_fresh",
+          "Default reuses agent definitions, not accumulated thread context.",
+          "Use role_thread only when continuity matters more than clean context.",
+          "Start a fresh pool for each $maw workflow and close completed workers."
+        ]
+      ],
+      "extension-governance": [
+        "Create missing agents or skills only after duplicate checks and approval.",
+        [
+          "Use only when no existing agent or skill fits the request.",
+          "Run $codex-extend scan to compare existing agents and skills first.",
+          "Reuse or refine an existing item when responsibilities overlap.",
+          "Create only with --approve when the purpose is clear and unique.",
+          "A new agent must stay in one role and avoid adjacent work.",
+          "A new skill must include cautions, clean code, and banned patterns.",
+          "MAW runs only needed downstream agents after TASK completion events."
+        ]
+      ],
+      "worker-pool": [
+        "Use for MAW worker labels, reuse scope, and clear policy.",
+        [
+          "Agent TOML files are reusable role definitions.",
+          "Subagent threads are live workers and consume tokens.",
+          "Reuse workers only inside the same MAW workflow when the reuse key matches.",
+          "Do not reuse workers across unrelated new `$maw` jobs.",
+          "Use readable names such as `backend-order-implement-L002`.",
+          "Run `$codex-pool status` to inspect labels and reuse keys."
+        ]
+      ],
+      "capability-extension": [
+        "Use when a required agent or skill is missing and must be extended safely.",
+        [
+          "First run $codex-capabilities inspect to check similar agents and skills.",
+          "Reuse an existing capability when it is similar enough.",
+          "A new agent must have one mission and must not overlap other roles.",
+          "A new skill must own one repeatable workflow only.",
+          "Each skill must define purpose, trigger, inputs, outputs, steps, bans, and checks.",
+          "Include domain clean-code guidance and module boundaries from expert practice.",
+          "Ban spaghetti code, giant files, duplicate logic, and hidden side effects.",
+          "Creation requires $codex-edit-mode on and an explicit --approve flag.",
+          "$codex-extend create-agent --name name --purpose \"purpose\" --approve",
+          "$codex-extend create-skill --name name --purpose \"purpose\" --domain \"domain\" --approve",
+          "After creation, run $codex-agents check and $codex-skills list."
+        ]
+      ]
+    },
+    "agents": {
+      "architecture": [
+        "Owns architecture and work decomposition.",
+        "Structure requirements and boundaries. Keep implementation edits minimal."
+      ],
+      "backend": [
+        "Owns server APIs, services, and domain logic.",
+        "Edit backend code only and use only needed skills."
+      ],
+      "database": [
+        "Owns DB schema, migrations, and queries.",
+        "Check compatibility, rollback, and data safety first."
+      ],
+      "devops": [
+        "Owns CI/CD, Docker, and deployment pipelines.",
+        "Limit work to deployment config and prevent secret leaks."
+      ],
+      "docs": [
+        "Owns README, API docs, and release notes.",
+        "Follow language policy and 100 character line limits."
+      ],
+      "frontend": [
+        "Handles frontend UI, TSX components, hooks, and clients.",
+        "Use TS/TSX for React. Split UI by behavior and keep pages as composition."
+      ],
+      "git": [
+        "Owns branches, commits, diffs, and rollback.",
+        "Manage history comparison, safe revert, and PR/MR prep."
+      ],
+      "integration": [
+        "Owns external APIs, events, and messaging.",
+        "Check contracts, retry, timeout, and failure isolation first."
+      ],
+      "performance": [
+        "Owns bottlenecks, caching, and query cost.",
+        "Review measurable improvements and regression risk."
+      ],
+      "qa": [
+        "Checks requirements, regression, quality gates, and refactor need.",
+        "Check quality, refactor, and security gate results before completion."
+      ],
+      "refactor": [
+        "Handles behavior-preserving refactoring and duplicate removal.",
+        "Refactor only after tests and QA. Clean up duplication, oversized files, spaghetti structure, and frontend component sprawl."
+      ],
+      "security": [
+        "Handles auth, permissions, secrets, and vulnerability checks.",
+        "Check secret leaks, privilege escalation, input validation, risky dependencies, and deployment leaks. Do not finish with security issues."
+      ],
+      "test": [
+        "Compatibility test helper agent.",
+        "Prefer test_writer and test_runner for new MAW workflows."
+      ],
+      "test_writer": [
+        "Writes only the tests required for completed implementation tasks.",
+        "Write test code only. Do not implement product code, refactor, or fix security."
+      ],
+      "test_runner": [
+        "Runs tests, analyzes failures, and proposes minimal follow-up work.",
+        "Run tests and analyze failures only. Do not implement product code."
+      ],
+      "capability_manager": [
+        "Reviews agent and skill extension requests and prevents duplicates.",
+        "Review agent and skill creation requests. Reject duplicate roles and vague ownership."
+      ]
+    }
+  }
+}
