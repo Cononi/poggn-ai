@@ -266,29 +266,46 @@ def test_hook_protected_write_still_denies_codex_edits_in_project_mode():
 
 
 def test_trace_view_renders_tasks_markdown_in_current_language(tmp_path):
+    import json
     import codex_trace_view
     original = codex_trace_view.lib.language
     codex_trace_view.lib.language = lambda: 'ko'
     try:
         cur = {
             'path': str(tmp_path), 'title': '주문 기능', 'branch': 'feature/order',
-            'base_branch': 'main', 'workflow': 'maw', 'phase': 'plan',
+            'base_branch': 'main', 'workflow': 'maw', 'phase': 'implement',
             'run_version': 1, 'project_version': '0.1.0', 'next_version': '0.1.1',
             'created_at': '2026-06-15T00:00:00+09:00',
         }
         task = {
             'id': 'T001', 'title': '주문 생성', 'agent': 'backend',
-            'skills': ['spring-boot'], 'status': 'todo',
+            'skills': ['spring-boot'], 'status': 'done', 'stage': 'implement',
             'purpose': '주문 생성 API를 구현합니다.',
             'acceptance': '검증을 통과합니다.',
             'non_goals': '결제 연동은 제외합니다.',
         }
+        lane = {'id': 'L001', 'task_id': 'T001', 'agent': 'backend',
+                'title': '주문 생성', 'stage': 'implement', 'status': 'done',
+                'worker_name': 'backend-order-implement-L001'}
+        commit = {'time': '2026-06-15T13:03:00+09:00', 'task_id': 'T001',
+                  'lane_id': 'L001', 'commit': '60032b812345', 'short': '60032b8',
+                  'summary': '주문 생성 API 구현',
+                  'files': ['A\tsrc/main/java/Order.java', 'M\tbuild.gradle']}
+        (tmp_path / 'lanes.jsonl').write_text(json.dumps(lane, ensure_ascii=False) + '\n',
+                                             encoding='utf-8')
+        (tmp_path / 'commits.jsonl').write_text(json.dumps(commit, ensure_ascii=False) + '\n',
+                                               encoding='utf-8')
         codex_trace_view.render(cur, [task])
         rendered = (tmp_path / 'TASKS.md').read_text(encoding='utf-8')
-        assert '제목: 주문 기능' in rendered
-        assert '## 태스크' in rendered
-        assert '목적:주문 생성 API를 구현합니다.' in rendered
-        assert '완료기준:검증을 통과합니다.' in rendered
+        assert '# 태스크' in rendered
+        assert '## 커밋 맵' in rendered
+        assert '| `60032b8` | T001 | L001 | backend-order-implement-L001 | implement | 주문 생성 API 구현 | `git revert 60032b8` |' in rendered
+        assert '### 작업 리스트' in rendered
+        assert '| [x] | L001 | 주문 생성 | backend-order-implement-L001 | 2026-06-15T13:03:00+09:00 | `60032b8` - 주문 생성 API 구현 |' in rendered
+        assert '### 변경 요약' in rendered
+        assert '| 1 | 1 | 0 | 0 |' in rendered
+        assert '| A | `src/main/java/Order.java` |' in rendered
+        assert '| M | `build.gradle` |' in rendered
         assert 'purpose:' not in rendered
         assert 'acceptance:' not in rendered
     finally:

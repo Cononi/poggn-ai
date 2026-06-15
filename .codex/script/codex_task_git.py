@@ -22,6 +22,7 @@ def git(args: list[str], cwd: Path | None = None, check: bool = True) -> str:
     return p.stdout.strip()
 
 def short(commit: str) -> str: return git(["rev-parse", "--short", commit])
+def subject(commit: str) -> str: return git(["show", "-s", "--format=%s", commit])
 def changed_files(commit: str) -> list[str]:
     return [x for x in git(["show", "--name-status", "--format=", commit]).splitlines() if x.strip()]
 
@@ -62,7 +63,7 @@ def link_task(tid: str, commit: str, lane_id: str = "", done: bool = True) -> di
     lane = get_lane(c, lane_id) if lane_id else {}
     row = {"time": lib.now(), "task_id": tid, "lane_id": lane_id,
            "wave": lane.get("wave") or task.get("wave", ""), "commit": commit,
-           "short": short(commit), "files": changed_files(commit),
+           "short": short(commit), "summary": subject(commit), "files": changed_files(commit),
            "agent": task.get("agent", ""), "skills": task.get("skills", [])}
     append_commit(c, row); codex_state.write_tasks(c, tasks)
     codex_state.events(c, "commit_link", {"id": tid, "commit": row["short"], "lane_id": lane_id})
