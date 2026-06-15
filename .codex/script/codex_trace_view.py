@@ -37,46 +37,29 @@ def by_id(rows: list[dict]) -> dict[str, dict]:
 LABELS = {
     "ko": {
         "heading": "# 태스크", "summary": "요약", "commit_map": "커밋 맵",
-        "tasks_detail": "태스크 상세", "task_info": "태스크 정보",
-        "work_list": "작업 리스트", "change_summary": "변경 요약",
-        "changed_files": "변경 파일", "verification": "검증", "item": "항목", "value": "값",
-        "title": "제목", "branch": "브랜치", "base": "기준", "workflow": "워크플로",
-        "phase": "단계", "run_version": "실행버전", "project_version": "프로젝트버전",
-        "next_version": "다음버전", "created_at": "생성시각", "progress": "진행률",
-        "waves": "웨이브", "agents": "에이전트", "tasks": "태스크", "commits": "커밋",
-        "lanes": "레인", "stages": "단계", "purpose": "목적", "acceptance": "완료기준",
-        "non_goals": "제외범위", "worker": "작업자", "last": "마지막", "deps": "의존성",
-        "lane": "레인", "stage": "단계", "wave": "웨이브", "commit": "커밋",
-        "revert": "되돌리기", "agent": "에이전트", "type": "유형", "task": "태스크",
-        "summary_col": "요약", "done": "완료", "instruction": "작업 지시", "assignee": "담당",
-        "completed_at": "완료 시간", "status": "상태", "skills": "스킬", "feature": "기능",
-        "file_type": "유형", "file": "파일", "result": "결과", "evidence": "근거",
-        "pending": "대기", "complete": "완료", "none": "-", "linked_commit": "연결 커밋",
-        "no_file": "파일 없음", "no_commit": "연결된 커밋 없음", "no_verification": "검증 lane 없음",
+        "item": "항목", "value": "값", "title": "제목", "workflow": "워크플로",
+        "phase": "단계", "progress": "진행률", "branch": "브랜치", "base": "기준",
+        "run_version": "실행버전", "project_version": "프로젝트버전", "next_version": "다음버전",
+        "created_at": "생성시각", "tasks": "태스크", "lanes": "레인", "commits": "커밋",
+        "changed_files": "변경 파일", "commit": "커밋", "task": "TASK", "lane": "Lane",
+        "agent": "에이전트", "type": "유형", "summary_col": "요약", "revert": "되돌리기",
+        "done": "완료", "instruction": "작업 지시", "completed_at": "완료 시간",
+        "files_summary": "변경 요약 및 파일", "file_type": "유형", "file": "파일",
+        "no_commit": "연결된 커밋 없음", "no_file": "변경 파일 없음", "none": "-",
     },
     "en": {
         "heading": "# TASKS", "summary": "Summary", "commit_map": "Commit Map",
-        "tasks_detail": "Task Details", "task_info": "Task Info",
-        "work_list": "Work List", "change_summary": "Change Summary",
-        "changed_files": "Changed Files", "verification": "Verification", "item": "Item", "value": "Value",
-        "title": "Title", "branch": "Branch", "base": "Base", "workflow": "Workflow",
-        "phase": "Phase", "run_version": "Run Version", "project_version": "Project Version",
-        "next_version": "Next Version", "created_at": "Created At", "progress": "Progress",
-        "waves": "Waves", "agents": "Agents", "tasks": "Tasks", "commits": "Commits",
-        "lanes": "Lanes", "stages": "Stages", "purpose": "Purpose", "acceptance": "Acceptance",
-        "non_goals": "Non-goals", "worker": "Worker", "last": "Last", "deps": "Deps",
-        "lane": "Lane", "stage": "Stage", "wave": "Wave", "commit": "Commit",
-        "revert": "Revert", "agent": "Agent", "type": "Type", "task": "Task",
-        "summary_col": "Summary", "done": "Done", "instruction": "Instruction", "assignee": "Assignee",
-        "completed_at": "Completed At", "status": "Status", "skills": "Skills", "feature": "Feature",
-        "file_type": "Type", "file": "File", "result": "Result", "evidence": "Evidence",
-        "pending": "Pending", "complete": "Complete", "none": "-", "linked_commit": "Linked commit",
-        "no_file": "No changed files", "no_commit": "No linked commits", "no_verification": "No verification lanes",
+        "item": "Item", "value": "Value", "title": "Title", "workflow": "Workflow",
+        "phase": "Phase", "progress": "Progress", "branch": "Branch", "base": "Base",
+        "run_version": "Run Version", "project_version": "Project Version", "next_version": "Next Version",
+        "created_at": "Created At", "tasks": "Tasks", "lanes": "Lanes", "commits": "Commits",
+        "changed_files": "Changed Files", "commit": "Commit", "task": "TASK", "lane": "Lane",
+        "agent": "Agent", "type": "Type", "summary_col": "Summary", "revert": "Revert",
+        "done": "Done", "instruction": "Instruction", "completed_at": "Completed At",
+        "files_summary": "Change Summary and Files", "file_type": "Type", "file": "File",
+        "no_commit": "No linked commits", "no_file": "No changed files", "none": "-",
     },
 }
-
-
-VERIFY_STAGES = {"test", "test_writer", "test_runner", "qa", "security", "refactor", "review"}
 
 
 def current_labels() -> dict:
@@ -97,7 +80,7 @@ def short_path(path: str, max_len: int = 96) -> str:
     return path if len(path) <= max_len else "..." + path[-max_len + 3:]
 
 
-def value_text(value, limit: int = 220) -> str:
+def value_text(value, limit: int = 180) -> str:
     if isinstance(value, list):
         value = "; ".join(str(x) for x in value if x)
     elif value is None:
@@ -126,31 +109,9 @@ def fallback_acceptance(item: dict) -> str:
     return "실패 원인, blocker, 남은 위험을 분리해 보고합니다."
 
 
-def file_code(raw: str) -> str:
-    parts = raw.split("	")
-    raw_code = parts[0][:1] if parts else "?"
-    return raw_code if raw_code in {"A", "M", "D", "R"} else "?"
-
-
-def file_path(raw: str) -> str:
-    parts = raw.split("	")
-    return parts[-1] if len(parts) > 1 else raw
-
-
-def file_counts(rows: list[dict]) -> dict[str, int]:
-    counts = {"A": 0, "M": 0, "D": 0, "R": 0}
-    for row in rows:
-        for raw in row.get("files", []):
-            code_ = file_code(raw)
-            if code_ in counts:
-                counts[code_] += 1
-    return counts
-
-
 def table(headers: list[str], rows: list[list[str]]) -> list[str]:
     lines = ["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"]
-    if not rows:
-        rows = [["-" for _ in headers]]
+    rows = rows or [["-" for _ in headers]]
     lines.extend("| " + " | ".join(md(cell) for cell in row) + " |" for row in rows)
     return lines
 
@@ -158,6 +119,39 @@ def table(headers: list[str], rows: list[list[str]]) -> list[str]:
 def info_table(rows: list[tuple[str, str]]) -> list[str]:
     labels = current_labels()
     return table([labels["item"], labels["value"]], [[k, v] for k, v in rows])
+
+
+def file_code(raw: str) -> str:
+    parts = raw.split("\t")
+    raw_code = parts[0][:1] if parts else "?"
+    return raw_code if raw_code in {"A", "M", "D", "R"} else "?"
+
+
+def file_path(raw: str) -> str:
+    parts = raw.split("\t")
+    return parts[-1] if len(parts) > 1 else raw
+
+
+def file_counts(rows: list[dict]) -> dict[str, int]:
+    counts = {"A": 0, "M": 0, "D": 0, "R": 0}
+    for row in rows:
+        for raw in row.get("files", []):
+            kind = file_code(raw)
+            if kind in counts:
+                counts[kind] += 1
+    return counts
+
+
+def changed_file_rows(rows: list[dict]) -> list[list[str]]:
+    seen = set(); out = []
+    for row in rows:
+        for raw in row.get("files", []):
+            item = (file_code(raw), file_path(raw))
+            if item in seen:
+                continue
+            seen.add(item)
+            out.append([item[0], code(short_path(item[1]))])
+    return out
 
 
 def commit_short(row: dict) -> str:
@@ -169,94 +163,58 @@ def commit_summary(row: dict, task: dict | None, lane: dict | None) -> str:
                       (lane or {}).get("title") or (task or {}).get("title") or "-")
 
 
+def commit_cell(rows: list[dict], task: dict, lane: dict | None = None) -> str:
+    if not rows:
+        return "-"
+    return "<br>".join(f"{code(commit_short(row))} - {md(commit_summary(row, task, lane))}" for row in rows)
+
+
+def completed_at(rows: list[dict]) -> str:
+    return rows[0].get("time", "-") if rows else "-"
+
+
+def row_worker(row: dict) -> str:
+    return row.get("worker_name") or row.get("reuse_key") or row.get("agent") or "none"
+
+
+def group_seed(item: dict, cur: dict) -> str:
+    return (item.get("group_id") or item.get("work_id") or item.get("request_summary") or
+            cur.get("request_summary") or cur.get("title") or "work")
+
+
+def group_title(item: dict, cur: dict) -> str:
+    return value_text(item.get("group_title") or item.get("work_title") or
+                      item.get("request_summary") or cur.get("request_summary") or
+                      cur.get("title") or "work", 96)
+
+
+def task_done(task: dict, task_lanes: list[dict], task_commits: list[dict]) -> bool:
+    if task.get("status") != "done":
+        return False
+    if task_lanes:
+        ok = all(x.get("status") in {"done", "merged"} for x in task_lanes)
+        return ok and bool(task_commits)
+    return bool(task.get("commits") or task_commits)
+
+
 def commit_map_rows(tasks: list[dict], lane_rows: list[dict], commit_rows: list[dict]) -> list[list[str]]:
-    labels = current_labels(); tasks_by_id = by_id(tasks); lanes_by_id = by_id(lane_rows)
-    rows = []
+    labels = current_labels(); tasks_by_id = by_id(tasks); lanes_by_id = by_id(lane_rows); out = []
     for row in commit_rows:
         task = tasks_by_id.get(row.get("task_id", ""), {})
         lane = lanes_by_id.get(row.get("lane_id", ""), {})
         short = commit_short(row)
-        rows.append([
+        out.append([
             code(short), row.get("task_id", "-"), row.get("lane_id") or "-",
-            lane.get("worker_name") or row.get("agent") or task.get("agent", "-"),
-            lane.get("stage") or task.get("stage") or "-", commit_summary(row, task, lane),
-            code(f"git revert {short}") if short != "-" else labels["none"],
+            row_worker(lane or row or task), lane.get("stage") or task.get("stage") or "-",
+            commit_summary(row, task, lane), code(f"git revert {short}") if short != "-" else labels["none"],
         ])
-    return rows
-
-
-def completed_at(row: dict | None) -> str:
-    return (row or {}).get("time") or "-"
-
-
-def lane_commit_rows(lane: dict, commits_for_task: list[dict]) -> list[dict]:
-    lid = lane.get("id", "")
-    return [row for row in commits_for_task if row.get("lane_id") == lid]
-
-
-def task_direct_commits(task: dict, commits_for_task: list[dict]) -> list[dict]:
-    return [row for row in commits_for_task if not row.get("lane_id")]
-
-
-def commit_cell(rows: list[dict], task: dict, lane: dict | None = None) -> str:
-    if not rows:
-        return "-"
-    cells = []
-    for row in rows:
-        short = commit_short(row)
-        cells.append(f"{code(short)} - {md(commit_summary(row, task, lane))}")
-    return "<br>".join(cells)
-
-
-def work_rows(task: dict, task_lanes: list[dict], commits_for_task: list[dict]) -> list[list[str]]:
-    labels = current_labels(); rows = []
-    if task_lanes:
-        for lane in task_lanes:
-            commits_ = lane_commit_rows(lane, commits_for_task)
-            done = "[x]" if lane.get("status") in {"done", "merged"} else "[ ]"
-            rows.append([
-                done, lane.get("id", "-"), value_text(lane.get("title") or task.get("title")),
-                lane.get("worker_name") or lane.get("agent", "-"), completed_at(commits_[0] if commits_ else None),
-                commit_cell(commits_, task, lane),
-            ])
-        return rows
-    commits_ = task_direct_commits(task, commits_for_task) or commits_for_task
-    done = "[x]" if task.get("status") == "done" and commits_ else "[ ]"
-    rows.append([
-        done, task.get("id", "-"), value_text(task.get("title")), task.get("agent", "-"),
-        completed_at(commits_[0] if commits_ else None), commit_cell(commits_, task),
-    ])
-    return rows
-
-
-def changed_file_rows(commits_for_task: list[dict]) -> list[list[str]]:
-    rows = []
-    seen = set()
-    for row in commits_for_task:
-        for raw in row.get("files", []):
-            item = (file_code(raw), file_path(raw))
-            if item in seen:
-                continue
-            seen.add(item); rows.append([item[0], code(short_path(item[1]))])
-    return rows
-
-
-def verification_rows(task: dict, task_lanes: list[dict], commits_for_task: list[dict]) -> list[list[str]]:
-    labels = current_labels(); rows = []
-    for lane in task_lanes:
-        stage = lane.get("stage") or lane.get("agent", "")
-        if stage not in VERIFY_STAGES and lane.get("agent") not in VERIFY_STAGES:
-            continue
-        commits_ = lane_commit_rows(lane, commits_for_task)
-        result = labels["complete"] if lane.get("status") in {"done", "merged"} else labels["pending"]
-        rows.append([stage, result, commit_cell(commits_, task, lane) or lane.get("title", "-")])
-    return rows
+    return out
 
 
 def summary_lines(cur: dict, tasks: list[dict], lane_rows: list[dict], commit_rows: list[dict]) -> list[str]:
-    labels = current_labels()
-    done = sum(1 for t in tasks if task_done(t, [x for x in lane_rows if x.get("task_id") == t.get("id")],
-                                      [x for x in commit_rows if x.get("task_id") == t.get("id")]))
+    labels = current_labels(); lane_map = by_task(lane_rows); commit_map = by_task(commit_rows)
+    done = sum(1 for task in tasks if task_done(task, lane_map.get(task.get("id", ""), []),
+                                                commit_map.get(task.get("id", ""), [])))
     counts = file_counts(commit_rows)
     return [
         f"## {labels['summary']}",
@@ -279,53 +237,74 @@ def summary_lines(cur: dict, tasks: list[dict], lane_rows: list[dict], commit_ro
     ]
 
 
-def task_done(task: dict, task_lanes: list[dict], task_commits: list[dict]) -> bool:
-    if task.get("status") != "done":
-        return False
-    if task_lanes:
-        ok = all(x.get("status") in {"done", "merged"} for x in task_lanes)
-        return ok and bool(task_commits)
-    return bool(task.get("commits") or task_commits)
+def lane_work_row(task: dict, lane: dict, commits_for_lane: list[dict]) -> list[str]:
+    labels = current_labels(); done = "[x]" if lane.get("status") in {"done", "merged"} else "[ ]"
+    return [done, task.get("id", "-"), lane.get("id", "-"), lane.get("stage") or lane.get("agent", "-"),
+            value_text(lane.get("title") or task.get("title")), completed_at(commits_for_lane),
+            commit_cell(commits_for_lane, task, lane)]
 
 
-def task_section(task: dict, task_lanes: list[dict], commits_for_task: list[dict]) -> list[str]:
-    labels = current_labels(); counts = file_counts(commits_for_task)
-    worker_names = [x.get("worker_name") for x in task_lanes if x.get("worker_name")]
-    worker = ", ".join(worker_names) if worker_names else task.get("agent", "-")
-    status = labels["complete"] if task_done(task, task_lanes, commits_for_task) else labels["pending"]
-    lines = ["", f"## {task.get('id', '-')} - {task.get('title', '-')}", "",
-             f"### {labels['task_info']}"]
-    lines += info_table([
-        (labels["agent"], task.get("agent", "-")),
-        (labels["worker"], worker),
-        (labels["stage"], task.get("stage", "-")),
-        (labels["wave"], task.get("wave", "-")),
-        (labels["feature"], task.get("feature", "-")),
-        (labels["status"], status),
-        (labels["skills"], ",".join(task.get("skills", [])) or "-"),
-        (labels["purpose"], value_text(task.get("purpose") or fallback_purpose(task))),
-        (labels["acceptance"], value_text(task.get("acceptance") or fallback_acceptance(task))),
-        (labels["non_goals"], value_text(task.get("non_goals")) or "-"),
-    ])
-    lines += ["", f"### {labels['work_list']}"]
-    lines += table([labels["done"], labels["lane"], labels["instruction"], labels["assignee"],
-                    labels["completed_at"], labels["commit"]], work_rows(task, task_lanes, commits_for_task))
-    lines += ["", f"### {labels['change_summary']}"]
-    lines += table(["ADD", "UPDATE", "DELETE", "RENAME"],
-                   [[str(counts["A"]), str(counts["M"]), str(counts["D"]), str(counts["R"])]])
-    lines += ["", f"### {labels['changed_files']}"]
-    file_rows = changed_file_rows(commits_for_task)
-    lines += table([labels["file_type"], labels["file"]], file_rows or [["-", labels["no_file"]]])
-    lines += ["", f"### {labels['verification']}"]
-    verify = verification_rows(task, task_lanes, commits_for_task)
-    lines += table([labels["type"], labels["result"], labels["evidence"]],
-                   verify or [["-", labels["pending"], labels["no_verification"]]])
+def task_work_row(task: dict, commits_for_task: list[dict]) -> list[str]:
+    done = "[x]" if task.get("status") == "done" and commits_for_task else "[ ]"
+    return [done, task.get("id", "-"), "-", task.get("stage") or task.get("agent", "-"),
+            value_text(task.get("title")), completed_at(commits_for_task), commit_cell(commits_for_task, task)]
+
+
+def details_block(commit_rows: list[dict]) -> list[str]:
+    labels = current_labels(); counts = file_counts(commit_rows)
+    rows = changed_file_rows(commit_rows) or [["-", labels["no_file"]]]
+    return [
+        "",
+        "<details>",
+        f"<summary>{labels['files_summary']}</summary>",
+        "",
+        *table(["ADD", "UPDATE", "DELETE", "RENAME"],
+               [[str(counts["A"]), str(counts["M"]), str(counts["D"]), str(counts["R"])] ]),
+        "",
+        *table([labels["file_type"], labels["file"]], rows),
+        "",
+        "</details>",
+    ]
+
+
+def grouped_sections(cur: dict, tasks: list[dict], lane_rows: list[dict], commit_rows: list[dict]) -> list[str]:
+    labels = current_labels(); lane_map = by_task(lane_rows); commit_map = by_task(commit_rows)
+    tasks_by_id = by_id(tasks); group_order: list[str] = []; groups: dict[str, dict] = {}
+    for task in tasks:
+        seed = group_seed(task, cur)
+        if seed not in groups:
+            groups[seed] = {"index": len(groups) + 1, "title": group_title(task, cur), "tasks": []}
+            group_order.append(seed)
+        groups[seed]["tasks"].append(task)
+    lines: list[str] = []
+    for seed in group_order:
+        group = groups[seed]; gid = seed if str(seed).startswith("G") else f"G{group['index']:03d}"
+        lines += ["", f"# {gid} - {group['title']}"]
+        agent_rows: dict[str, list[list[str]]] = {}; agent_commits: dict[str, list[dict]] = {}
+        for task in group["tasks"]:
+            lanes_for_task = lane_map.get(task.get("id", ""), [])
+            commits_for_task = commit_map.get(task.get("id", ""), [])
+            if not lanes_for_task:
+                worker = task.get("agent", "none")
+                agent_rows.setdefault(worker, []).append(task_work_row(task, commits_for_task))
+                agent_commits.setdefault(worker, []).extend(commits_for_task)
+                continue
+            for lane in lanes_for_task:
+                worker = row_worker(lane)
+                lane_commits = [row for row in commits_for_task if row.get("lane_id") == lane.get("id")]
+                agent_rows.setdefault(worker, []).append(lane_work_row(task, lane, lane_commits))
+                agent_commits.setdefault(worker, []).extend(lane_commits)
+        for worker in sorted(agent_rows):
+            agent = worker.split("-")[0] if worker else "none"
+            lines += ["", f"## {agent} - {worker}"]
+            lines += table([labels["done"], labels["task"], labels["lane"], labels["type"],
+                            labels["instruction"], labels["completed_at"], labels["commit"]], agent_rows[worker])
+            lines += details_block(agent_commits.get(worker, []))
     return lines
 
 
 def render(cur: dict, tasks: list[dict]) -> None:
     labels = current_labels(); lane_rows = lanes(cur); commit_rows = commits(cur)
-    lane_map = by_task(lane_rows); commit_map = by_task(commit_rows)
     lines = [labels["heading"], ""]
     lines += summary_lines(cur, tasks, lane_rows, commit_rows)
     lines += ["", f"## {labels['commit_map']}"]
@@ -333,8 +312,5 @@ def render(cur: dict, tasks: list[dict]) -> None:
                     labels["summary_col"], labels["revert"]],
                    commit_map_rows(tasks, lane_rows, commit_rows) or
                    [["-", "-", "-", "-", "-", labels["no_commit"], "-"]])
-    lines += ["", f"# {labels['tasks_detail']}"]
-    for task in tasks:
-        lines += task_section(task, lane_map.get(task.get("id", ""), []),
-                              commit_map.get(task.get("id", ""), []))
+    lines += grouped_sections(cur, tasks, lane_rows, commit_rows)
     (Path(cur["path"]) / "TASKS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

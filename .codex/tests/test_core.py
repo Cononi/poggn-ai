@@ -272,40 +272,54 @@ def test_trace_view_renders_tasks_markdown_in_current_language(tmp_path):
     codex_trace_view.lib.language = lambda: 'ko'
     try:
         cur = {
-            'path': str(tmp_path), 'title': '주문 기능', 'branch': 'feature/order',
+            'path': str(tmp_path), 'title': 'jp/sb 기반 생성', 'branch': 'feature/jp-sb',
             'base_branch': 'main', 'workflow': 'maw', 'phase': 'implement',
             'run_version': 1, 'project_version': '0.1.0', 'next_version': '0.1.1',
             'created_at': '2026-06-15T00:00:00+09:00',
         }
-        task = {
-            'id': 'T001', 'title': '주문 생성', 'agent': 'backend',
-            'skills': ['spring-boot'], 'status': 'done', 'stage': 'implement',
-            'purpose': '주문 생성 API를 구현합니다.',
-            'acceptance': '검증을 통과합니다.',
-            'non_goals': '결제 연동은 제외합니다.',
-        }
-        lane = {'id': 'L001', 'task_id': 'T001', 'agent': 'backend',
-                'title': '주문 생성', 'stage': 'implement', 'status': 'done',
-                'worker_name': 'backend-order-implement-L001'}
-        commit = {'time': '2026-06-15T13:03:00+09:00', 'task_id': 'T001',
-                  'lane_id': 'L001', 'commit': '60032b812345', 'short': '60032b8',
-                  'summary': '주문 생성 API 구현',
-                  'files': ['A\tsrc/main/java/Order.java', 'M\tbuild.gradle']}
-        (tmp_path / 'lanes.jsonl').write_text(json.dumps(lane, ensure_ascii=False) + '\n',
-                                             encoding='utf-8')
-        (tmp_path / 'commits.jsonl').write_text(json.dumps(commit, ensure_ascii=False) + '\n',
-                                               encoding='utf-8')
-        codex_trace_view.render(cur, [task])
+        tasks = [
+            {'id': 'T001', 'title': 'jp JPA 라이브러리 생성', 'agent': 'backend',
+             'status': 'done', 'stage': 'implement', 'group_id': 'G001',
+             'group_title': 'jp/sb 기반 생성'},
+            {'id': 'T002', 'title': 'sb Spring Boot 앱 생성 및 jp 연동', 'agent': 'backend',
+             'status': 'done', 'stage': 'implement', 'group_id': 'G001',
+             'group_title': 'jp/sb 기반 생성'},
+        ]
+        lanes = [
+            {'id': 'L001', 'task_id': 'T001', 'agent': 'backend',
+             'title': 'jp JPA 라이브러리 생성', 'stage': 'implementation',
+             'status': 'done', 'worker_name': 'backend-A8'},
+            {'id': 'L002', 'task_id': 'T002', 'agent': 'backend',
+             'title': 'sb Spring Boot 앱 생성 및 jp 연동', 'stage': 'implementation',
+             'status': 'done', 'worker_name': 'backend-A8'},
+        ]
+        commits = [
+            {'time': '2026-05-15 13:03:00', 'task_id': 'T001', 'lane_id': 'L001',
+             'short': '60032b8', 'summary': 'jp JPA 라이브러리 생성',
+             'files': ['A\tjp/build.gradle']},
+            {'time': '2026-05-15 13:20:00', 'task_id': 'T002', 'lane_id': 'L002',
+             'short': '3f7fbf3', 'summary': 'sb Spring Boot 앱 생성 및 jp 연동',
+             'files': ['M\tsb/build.gradle']},
+        ]
+        (tmp_path / 'lanes.jsonl').write_text(
+            '\n'.join(json.dumps(x, ensure_ascii=False) for x in lanes) + '\n',
+            encoding='utf-8')
+        (tmp_path / 'commits.jsonl').write_text(
+            '\n'.join(json.dumps(x, ensure_ascii=False) for x in commits) + '\n',
+            encoding='utf-8')
+        codex_trace_view.render(cur, tasks)
         rendered = (tmp_path / 'TASKS.md').read_text(encoding='utf-8')
         assert '# 태스크' in rendered
         assert '## 커밋 맵' in rendered
-        assert '| `60032b8` | T001 | L001 | backend-order-implement-L001 | implement | 주문 생성 API 구현 | `git revert 60032b8` |' in rendered
-        assert '### 작업 리스트' in rendered
-        assert '| [x] | L001 | 주문 생성 | backend-order-implement-L001 | 2026-06-15T13:03:00+09:00 | `60032b8` - 주문 생성 API 구현 |' in rendered
-        assert '### 변경 요약' in rendered
+        assert '# G001 - jp/sb 기반 생성' in rendered
+        assert '## backend - backend-A8' in rendered
+        assert '| [x] | T001 | L001 | implementation | jp JPA 라이브러리 생성 | 2026-05-15 13:03:00 | `60032b8` - jp JPA 라이브러리 생성 |' in rendered
+        assert '| [x] | T002 | L002 | implementation | sb Spring Boot 앱 생성 및 jp 연동 | 2026-05-15 13:20:00 | `3f7fbf3` - sb Spring Boot 앱 생성 및 jp 연동 |' in rendered
+        assert '<summary>변경 요약 및 파일</summary>' in rendered
         assert '| 1 | 1 | 0 | 0 |' in rendered
-        assert '| A | `src/main/java/Order.java` |' in rendered
-        assert '| M | `build.gradle` |' in rendered
+        assert '| A | `jp/build.gradle` |' in rendered
+        assert '| M | `sb/build.gradle` |' in rendered
+        assert '### 태스크 정보' not in rendered
         assert 'purpose:' not in rendered
         assert 'acceptance:' not in rendered
     finally:
