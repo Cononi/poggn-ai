@@ -231,3 +231,35 @@ def test_task_commit_message_keeps_existing_conventional_subject():
     import codex_task_git
     task = {'id': 'T001', 'title': 'fallback', 'stage': 'implement'}
     assert codex_task_git.commit_subject('fix: correct dto mapping', task) == 'fix: correct dto mapping'
+
+
+def test_hook_prompt_output_does_not_inject_general_context():
+    import hook_context
+    out = hook_context.prompt_output('프로젝트 기능 수정해줘', 'ko')
+    assert out == {'continue': True}
+
+
+def test_hook_prompt_output_does_not_inject_maw_context():
+    import hook_context
+    out = hook_context.prompt_output('$maw 주문 기능 만들어줘', 'ko')
+    assert out == {'continue': True}
+
+
+def test_hook_session_start_has_no_system_message():
+    import hook_context
+    out = hook_context.output('session_start')
+    assert out == {'continue': True, 'suppressOutput': True}
+
+
+def test_hook_protected_write_still_denies_codex_edits_in_project_mode():
+    import hook_context
+    original = hook_context.read_mode
+    hook_context.read_mode = lambda: {'mode': 'project'}
+    try:
+        payload = {
+            'tool_name': 'apply_patch',
+            'tool_input': {'path': '.codex/script/hook_context.py'},
+        }
+        assert hook_context.protected_write(payload)
+    finally:
+        hook_context.read_mode = original
