@@ -12,10 +12,14 @@ Apply `../_references/core-rules.md` first.
 - Check git status for unrelated changes before work.
 - Stage only files within the requested scope.
 - Pass the quality gate before commit.
+- Commit subject, body, and footer follow the current language policy.
 
 ## Procedure
 
 - Write TASK commits with the correct lane id and message.
+- Use conventional commit subject format `{type}: {title}`.
+- Body records purpose, scope, acceptance criteria, and verification.
+- Footer records Codex-Task, Codex-Lane, and Codex-Verification.
 - Verify existing commit links by hash and TASK.
 - Review diffs as stat, name-only, then targeted diff.
 - Separate state commits from product commits when needed.

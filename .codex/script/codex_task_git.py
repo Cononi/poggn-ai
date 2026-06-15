@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, shutil, subprocess, sys
+import argparse, json, re, shutil, subprocess, sys
 from pathlib import Path
 import lib, codex_state, codex_trace_view
 
@@ -96,19 +96,97 @@ def process_events(c, tid, lane_id):
     p = subprocess.run(cmd, cwd=str(lib.root_dir()), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try: return json.loads((p.stdout or "{}").strip())
     except Exception: return {"event_output": (p.stdout or p.stderr).strip()}
+CONVENTIONAL_RE = re.compile(r"^[a-z]+(?:\([^)]+\))?!?: .+")
+
+
+def compact(value, limit: int = 180) -> str:
+    if isinstance(value, list):
+        value = "; ".join(str(x) for x in value if x)
+    text = " ".join(str(value or "").split())
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "..."
+
+
+def commit_type(task: dict, lane: dict | None = None) -> str:
+    row = lane or task
+    stage = row.get("stage") or task.get("stage", "")
+    agent = row.get("agent") or task.get("agent", "")
+    if stage == "test" or agent in {"test", "test_writer", "test_runner"}:
+        return "test"
+    if stage == "refactor" or agent == "refactor":
+        return "refactor"
+    if stage == "security" or agent == "security":
+        return "fix"
+    if agent == "docs":
+        return "docs"
+    if agent == "devops":
+        return "ci"
+    if stage in {"implement", "foundation"}:
+        return "feat"
+    return "chore"
+
+
+def commit_subject(message: str, task: dict, lane: dict | None = None) -> str:
+    title = compact(message or task.get("title") or "update task", 72)
+    if CONVENTIONAL_RE.match(title):
+        return title
+    return f"{commit_type(task, lane)}: {title}"
+
+
+def commit_body(task: dict, c: dict, lane: dict | None, mode: str, lang: str) -> str:
+    purpose = compact(task.get("purpose") or codex_trace_view.fallback_purpose(task))
+    acceptance = compact(task.get("acceptance") or codex_trace_view.fallback_acceptance(task))
+    lane_id = lane.get("id") if lane else "-"
+    if lang == "ko":
+        lines = [
+            f"목적: {purpose}",
+            f"범위: TASK {task.get('id')} / lane {lane_id} / workflow {c.get('workflow')}",
+            f"완료 기준: {acceptance}",
+            f"검증: codex_verify gate --staged --mode {mode}",
+        ]
+    else:
+        lines = [
+            f"Purpose: {purpose}",
+            f"Scope: TASK {task.get('id')} / lane {lane_id} / workflow {c.get('workflow')}",
+            f"Acceptance: {acceptance}",
+            f"Verification: codex_verify gate --staged --mode {mode}",
+        ]
+    return "\n".join(lines)
+
+
+def commit_footer(args, task: dict, c: dict, mode: str, lang: str) -> str:
+    lines = [f"Codex-Task: {args.id}", f"Codex-Workflow: {Path(c['path']).name}"]
+    if args.lane:
+        lines.append(f"Codex-Lane: {args.lane}")
+    if task.get("agent"):
+        lines.append(f"Codex-Agent: {task['agent']}")
+    if task.get("skills"):
+        lines.append("Codex-Skills: " + ",".join(task["skills"]))
+    lines.append(f"Codex-Verification: codex_verify gate --staged --mode {mode}")
+    lines.append(f"Codex-Language: {lang}")
+    return "\n".join(lines)
+
+
+def commit_message_parts(args, task: dict, c: dict, lane: dict | None,
+                         mode: str) -> tuple[str, str, str]:
+    lang = lib.language()
+    subject = commit_subject(args.message or task.get("title", ""), task, lane)
+    body = commit_body(task, c, lane, mode, lang)
+    footer = commit_footer(args, task, c, mode, lang)
+    return subject, body, footer
+
+
 def commit_cwd(args, cwd: Path, task: dict, c: dict) -> str:
     stage_all(cwd)
     mode = "saw" if c.get("workflow") == "saw" else "maw"
     verify_gate(cwd, mode, args.allow_no_test)
-    title = args.message or task["title"]
-    body = [f"Codex-Task: {args.id}", f"Codex-Workflow: {Path(c['path']).name}"]
-    if args.lane: body.append(f"Codex-Lane: {args.lane}")
-    if task.get("agent"): body.append(f"Codex-Agent: {task['agent']}")
-    if task.get("skills"): body.append("Codex-Skills: " + ",".join(task["skills"]))
+    lane = get_lane(c, args.lane) if args.lane else None
+    subject, body, footer = commit_message_parts(args, task, c, lane, mode)
     cmd = ["commit"]
-    if getattr(args, "allow_empty", False): cmd.append("--allow-empty")
-    cmd += ["-m", title, "-m", "\n".join(body)]
-    git(cmd, cwd=cwd); return git(["rev-parse", "HEAD"], cwd=cwd)
+    if getattr(args, "allow_empty", False):
+        cmd.append("--allow-empty")
+    cmd += ["-m", subject, "-m", body, "-m", footer]
+    git(cmd, cwd=cwd)
+    return git(["rev-parse", "HEAD"], cwd=cwd)
 
 def maybe_enqueue(c: dict, lane_id: str, row: dict, no_events: bool = False) -> None:
     if no_events or c.get("workflow") != "maw" or not lane_id:
@@ -160,10 +238,28 @@ def cmd_revert(args) -> int:
     for commit in reversed(commits): git(["revert", "--no-edit", commit])
     print("reverted " + args.id); return 0
 
+def state_commit_parts(args, c: dict) -> tuple[str, str, str]:
+    lang = lib.language()
+    if lang == "ko":
+        default_subject = "chore(codex-state): TASK trace 상태 갱신"
+        body = "목적: TASK, lane, commit 원본 상태를 최신 실행 결과와 동기화합니다."
+    else:
+        default_subject = "chore(codex-state): update TASK trace"
+        body = "Purpose: synchronize TASK, lane, and commit state with current execution."
+    subject = args.message or default_subject
+    if not CONVENTIONAL_RE.match(subject):
+        subject = f"chore(codex-state): {subject}"
+    footer = "\n".join([f"Codex-Workflow: {Path(c['path']).name}",
+                        f"Codex-Language: {lang}"])
+    return subject, body, footer
+
+
 def cmd_state_commit(args) -> int:
     c = cur(); path = Path(c["path"]).relative_to(lib.root_dir())
     if not git(["status", "--porcelain", "--", str(path)], check=False): print("state clean"); return 0
-    git(["add", "-A", "--", str(path)]); git(["commit", "-m", args.message or "chore(codex-state): update task trace"])
+    git(["add", "-A", "--", str(path)])
+    subject, body, footer = state_commit_parts(args, c)
+    git(["commit", "-m", subject, "-m", body, "-m", footer])
     print(git(["rev-parse", "--short", "HEAD"])); return 0
 
 def cmd_scan(args) -> int:

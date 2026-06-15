@@ -207,3 +207,27 @@ def test_verify_prefers_gradle_wrapper_over_maven(tmp_path):
     cmds = codex_verify.detected_commands(tmp_path, ['src/main/java/App.java'], 'saw')
     assert cmds == [['./gradlew', 'test', '--no-daemon']]
 
+
+
+def test_task_commit_message_parts_include_body_and_footer():
+    import codex_task_git
+    args = type('Args', (), {'id': 'T123', 'lane': 'L007', 'message': '회원 주문 생성'})()
+    task = {'id': 'T123', 'title': '회원 주문 생성', 'agent': 'backend',
+            'skills': ['spring-boot'], 'stage': 'implement',
+            'purpose': '주문 생성 API를 구현합니다.',
+            'acceptance': '검증과 TASK 추적이 완료됩니다.'}
+    lane = {'id': 'L007', 'agent': 'backend', 'stage': 'implement'}
+    cur = {'workflow': 'maw', 'path': '/tmp/v1-order'}
+    subject, body, footer = codex_task_git.commit_message_parts(args, task, cur, lane, 'maw')
+    assert subject == 'feat: 회원 주문 생성'
+    assert '목적: 주문 생성 API를 구현합니다.' in body
+    assert '검증: codex_verify gate --staged --mode maw' in body
+    assert 'Codex-Task: T123' in footer
+    assert 'Codex-Lane: L007' in footer
+    assert 'Codex-Verification: codex_verify gate --staged --mode maw' in footer
+
+
+def test_task_commit_message_keeps_existing_conventional_subject():
+    import codex_task_git
+    task = {'id': 'T001', 'title': 'fallback', 'stage': 'implement'}
+    assert codex_task_git.commit_subject('fix: correct dto mapping', task) == 'fix: correct dto mapping'
