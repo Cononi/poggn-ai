@@ -5,7 +5,7 @@ from pathlib import Path
 import lib
 STOP = set('the a an and or to for of in on with by is are be 를 을 은 는 이 가 에 의'.split())
 DEFAULT = {"require_approve": True, "require_edit_mode": True,
-           "similarity_threshold": 0.38, "model": "gpt-5.5"}
+           "similarity_threshold": 0.38, "model": "gpt-5.3-codex-spark"}
 def cfg() -> dict:
     data = lib.read_json(lib.find_codex() / "state" / "extension_policy.json", DEFAULT)
     out = dict(DEFAULT); out.update(data); return out

@@ -107,8 +107,11 @@ def cmd_status(args) -> int:
     c = cur(); rows = lanes(c); data = stats(rows)
     ready = ready_rows(rows, args.stage, args.wave)
     if args.for_ai:
-        data["ready"] = [slim(x) for x in ready[:READY_AI_LIMIT]]
-        data["ready_hidden"] = max(0, len(ready) - READY_AI_LIMIT)
+        shown = ready[:READY_AI_LIMIT]
+        data["ready"] = [slim(x) for x in shown]
+        data["ready_shown"] = len(shown)
+        data["ready_total"] = len(ready)
+        data["ready_hidden"] = max(0, len(ready) - len(shown))
     else:
         data["ready"] = [slim(x) for x in ready]
     print(json.dumps(data, ensure_ascii=False, indent=2)); return 0
@@ -117,8 +120,10 @@ def cmd_status(args) -> int:
 def cmd_ready(args) -> int:
     rows = ready_rows(lanes(cur()), args.stage, args.wave)
     if args.for_ai:
-        data = {"ready": [slim(x) for x in rows[:READY_AI_LIMIT]],
-                "ready_hidden": max(0, len(rows) - READY_AI_LIMIT),
+        shown = rows[:READY_AI_LIMIT]
+        data = {"ready": [slim(x) for x in shown],
+                "ready_shown": len(shown), "ready_total": len(rows),
+                "ready_hidden": max(0, len(rows) - len(shown)),
                 "note": "Use $codex-pipeline csv --ready for the full spawn table."}
     else:
         data = rows
@@ -156,6 +161,9 @@ def cmd_prompt(args) -> int:
     print("First run $codex-pipeline prepare if worktrees are missing.")
     print("Spawn one subagent per ready CSV row and wait for all results.")
     print("Use only the row contract; do not paste full TASKS.md into subagent prompts.")
+    print("Main is the orchestrator: review subagent outputs before marking lanes done.")
+    print("Check changed files, tests, blockers, security notes, and acceptance criteria.")
+    print("If review fails, re-dispatch that lane with concrete findings.")
     print("Reuse an active worker when worker_name matches this MAW run.")
     print(f"csv_path: {path}")
     print("id_column: lane_id")

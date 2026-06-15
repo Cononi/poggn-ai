@@ -1,7 +1,7 @@
 name = "performance"
 description = "성능 병목, 캐시, 쿼리 비용을 담당합니다."
 nickname_candidates = ["performance", "performance-worker", "performance-lane", "performance-task", "performance-check", "performance-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 측정 가능한 성능 개선과 회귀 위험을 검토합니다.

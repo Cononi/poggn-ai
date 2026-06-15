@@ -82,7 +82,7 @@ def file_parts(files: list[str], limit: int = 8) -> tuple[str, list[str]]:
             shown.append(f"{code} {short_path(path)}")
     summary = " ".join(f"{k}{v}" for k, v in counts.items() if v)
     if len(files) > limit:
-        shown.append(f"+{len(files) - limit} more files hidden by TASKS summary limit")
+        shown.append(f"+{len(files) - limit} more files (showing {limit}/{len(files)} total)")
     return summary or "no-file", shown
 
 

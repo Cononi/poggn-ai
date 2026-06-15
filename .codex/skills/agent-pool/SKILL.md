@@ -18,6 +18,7 @@ description: MAW worker 이름, thread 재사용, 종료 기준, context 오염 
 - pool status와 thread cap을 먼저 확인합니다.
 - 완료 thread는 결과 요약을 회수한 뒤 닫습니다.
 - 같은 workflow와 같은 ownership일 때만 thread 재사용을 허용합니다.
+- main 검토에서 실패한 lane만 같은 계약으로 재수행합니다.
 - 새 MAW workflow는 이전 worker context를 승계하지 않습니다.
 
 ## Expert Rules
@@ -29,6 +30,8 @@ description: MAW worker 이름, thread 재사용, 종료 기준, context 오염 
 - worker summary는 변경 파일, 검증, 남은 위험을 포함해야 합니다.
 - 오래 열린 worker는 최신 git 상태를 다시 확인하기 전 수정하지 못합니다.
 - thread 재사용은 same TASK, same lane, same file ownership일 때만 허용합니다.
+- 재수행은 같은 TASK/lane/ownership일 때만 기존 worker에 맡깁니다.
+- main 재검토 blocker는 짧은 실패 근거와 기대 수정만 worker에 전달합니다.
 - worker label은 role/task/lane/stage/files-scope 형식으로 둡니다.
 
 ## Expert Checks
@@ -56,6 +59,7 @@ description: MAW worker 이름, thread 재사용, 종료 기준, context 오염 
 - 서로 다른 TASK가 같은 live context를 공유함.
 - 완료 thread를 닫지 않아 spawn이 막힘.
 - worker가 다른 lane 파일을 무단 수정함.
+- main review 실패 lane을 새 근거 없이 반복 재사용함.
 
 ## Verify
 

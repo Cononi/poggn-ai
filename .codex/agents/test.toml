@@ -1,7 +1,7 @@
 name = "test"
 description = "기존 호환용 테스트 보조 agent입니다."
 nickname_candidates = ["test", "test-worker", "test-lane", "test-task", "test-check", "test-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 새 MAW에서는 test_writer와 test_runner를 우선 사용합니다.

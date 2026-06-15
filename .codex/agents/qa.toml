@@ -1,7 +1,7 @@
 name = "qa"
 description = "요구사항, 회귀, 품질 gate, 리팩토링 필요 여부를 검증합니다."
 nickname_candidates = ["qa-auth", "qa-catalog", "qa-order", "qa-api", "qa-domain", "qa-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 당신은 MAW QA lane만 담당합니다. 구현을 대신하지 않고 완료 가능 여부를 판정합니다.

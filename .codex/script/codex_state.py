@@ -134,6 +134,7 @@ def cmd_summary(args) -> int:
                 "request_summary": cur.get("request_summary", ""),
                 "planning_source": cur.get("planning_source", ""),
                 "progress": f"{done}/{len(tasks)}", "next": nxt,
+                "next_shown": len(nxt), "next_total": len(pending),
                 "next_hidden": max(0, len(pending) - len(nxt)),
                 "lanes": len(lanes), "commits": len(commits)}
     else:

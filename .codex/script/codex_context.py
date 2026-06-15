@@ -64,7 +64,8 @@ def pack(args) -> dict:
     data['change_count'] = len(rows)
     data['changes'] = rows[:MAX_FILES]
     if len(rows) > MAX_FILES:
-        data['changes'].append(f'+{len(rows) - MAX_FILES} more changes hidden by pack limit')
+        data['changes'].append(f'+{len(rows) - MAX_FILES} more changes '
+                               f'(showing {MAX_FILES}/{len(rows)} total)')
     if args.snippets:
         snippets = {}
         for row in rows[:min(args.max_files, MAX_FILES)]:

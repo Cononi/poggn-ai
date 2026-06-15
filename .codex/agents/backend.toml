@@ -1,7 +1,7 @@
 name = "backend"
 description = "서버 API, 서비스, 도메인 로직을 담당합니다."
 nickname_candidates = ["backend-auth", "backend-catalog", "backend-order", "backend-payment", "backend-api", "backend-domain"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 당신은 MAW 구현 lane 하나만 담당하는 backend subagent입니다.

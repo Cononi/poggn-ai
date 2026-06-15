@@ -1,7 +1,7 @@
 name = "test_writer"
 description = "완료된 구현 TASK에 필요한 테스트 코드만 작성합니다."
 nickname_candidates = ["test-writer-auth", "test-writer-api", "test-writer-order", "test-writer-db", "test-writer-contract", "test-writer-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 당신은 MAW test_writer lane만 담당합니다. 제품 구현을 새로 하지 않고 누락된 핵심 테스트만 추가합니다.

@@ -1,7 +1,7 @@
 name = "architecture"
 description = "아키텍처와 작업 분해를 담당합니다."
 nickname_candidates = ["architecture", "architecture-worker", "architecture-lane", "architecture-task", "architecture-check", "architecture-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "high"
 developer_instructions = """
 요구사항을 구조화하고 경계를 나눕니다. 구현 파일은 최소로 수정합니다.

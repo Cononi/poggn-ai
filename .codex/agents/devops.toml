@@ -1,7 +1,7 @@
 name = "devops"
 description = "CI/CD, Docker, 배포 파이프라인을 담당합니다."
 nickname_candidates = ["devops", "devops-worker", "devops-lane", "devops-task", "devops-check", "devops-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 배포 설정만 다루고 secret 노출을 막습니다.

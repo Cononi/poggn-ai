@@ -3,6 +3,8 @@ from __future__ import annotations
 import runpy, sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+
 
 def find_codex() -> Path:
     cur = Path(__file__).resolve()

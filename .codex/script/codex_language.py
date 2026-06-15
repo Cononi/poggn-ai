@@ -12,7 +12,7 @@ EFFORT = {
     "test": "medium", "test_writer": "medium", "test_runner": "medium",
     "capability_manager": "high",
 }
-MODEL = "gpt-5.5"
+MODEL = "gpt-5.3-codex-spark"
 
 
 def state_path() -> Path:

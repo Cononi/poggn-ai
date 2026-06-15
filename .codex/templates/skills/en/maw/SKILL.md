@@ -43,6 +43,13 @@ Apply `../_references/core-rules.md` first.
 - Give advice as risk, recommended approach, tradeoff, and confirmation need.
 - Let lane owners decide small details; main confirms behavior or contract changes.
 
+## Orchestration Contract
+
+- Main is the orchestrator, not an implementer.
+- Main evaluates subagent final reports, diffs, checks, acceptance, and blockers.
+- If a lane fails review, do not mark it done; re-dispatch it with findings.
+- Re-dispatch only inside the same lane and owner files; split scope creep.
+
 ## Token Contract
 
 - Do not send full TASKS.md, full conversation, or full ready JSON to subagents.
@@ -62,7 +69,9 @@ Apply `../_references/core-rules.md` first.
 ## Expert Rules
 
 - Treat MAW as an actual subagent thread contract, not a plan document.
-- Keep main as coordinator; it must not implement ready lanes directly.
+- Keep main as orchestrator; it must not implement ready lanes directly.
+- Main reviews subagent output against diff, tests, security, and acceptance.
+- If review fails, re-dispatch the same lane with concrete blockers.
 - Implementation agents implement only; QA/security/refactor agents judge later.
 - Create downstream lanes only after completion commit events.
 - Give each lane owner files, forbidden files, done contract, and verification.
@@ -78,6 +87,7 @@ Apply `../_references/core-rules.md` first.
 - Check whether `/agent` still shows only main.
 - Check whether the main thread implemented lane work itself.
 - Check whether downstream lanes were created but not spawned.
+- Check whether subagent output was passed without main review.
 - Check whether lanes were split from guessed requirements instead of criteria.
 - Reject security review that cannot explain an exploitable path in one line.
 
@@ -86,6 +96,7 @@ Apply `../_references/core-rules.md` first.
 - /agent shows only main while MAW is reported complete.
 - Main implements before checking the ready queue.
 - Implementation agent marks its own change as QA pass.
+- Subagent final report is marked done without main review.
 - Completed worker stays open and consumes pool capacity.
 - Downstream event runs after lane completion without a commit link.
 - Vague "build/implement/improve" request is split into lanes without criteria.
@@ -102,6 +113,7 @@ Apply `../_references/core-rules.md` first.
 - No real subagent thread for a ready implementation lane.
 - Lane has no file ownership or done contract.
 - Downstream required gate is skipped.
+- Subagent output is marked done without main review.
 - Public contract, authz, tenant isolation, secret handling, validation, or owner files are open.
 
 ## Verify
@@ -116,6 +128,7 @@ Apply `../_references/core-rules.md` first.
 - Ready queue, prompt, and spawned agent id are recorded.
 - Confirmed requirements, non-goals, acceptance criteria, lane contract, and checks exist.
 - Each subagent final report and changed files are integrated.
+- Main review result and any re-dispatch are recorded with lane id.
 - Commit link and downstream event result are reported.
 - Record spawn evidence with /agent thread id and lane id.
 - Security impact records assets, entry points, trust boundaries, authz, and validation.

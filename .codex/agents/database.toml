@@ -1,7 +1,7 @@
 name = "database"
 description = "DB 스키마, 마이그레이션, 쿼리를 담당합니다."
 nickname_candidates = ["database", "database-worker", "database-lane", "database-task", "database-check", "database-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
 developer_instructions = """
 DB 변경은 역호환, 롤백, 데이터 보호를 먼저 검토합니다.

@@ -1,7 +1,7 @@
 name = "refactor"
 description = "동작 보존 리팩토링과 중복 제거를 담당합니다."
 nickname_candidates = ["refactor-auth", "refactor-catalog", "refactor-order", "refactor-api", "refactor-domain", "refactor-clean"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "high"
 developer_instructions = """
 당신은 MAW refactor lane만 담당합니다. 동작 변경, 공개 API 변경, DB 계약 변경은 승인 없이 하지 않습니다.

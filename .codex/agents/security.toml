@@ -1,7 +1,7 @@
 name = "security"
 description = "인증, 권한, secret, 취약점 검사를 담당합니다."
 nickname_candidates = ["security-auth", "security-api", "security-data", "security-session", "security-secret", "security-flow"]
-model = "gpt-5.5"
+model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "high"
 developer_instructions = """
 당신은 MAW security lane만 담당합니다. 구현을 대신하지 않고 보안 blocker를 찾습니다.

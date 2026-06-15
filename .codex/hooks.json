@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'session_start'];runpy.run_path(str(d),run_name='__main__')\""
+            "command": "env PYTHONDONTWRITEBYTECODE=1 python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'session_start'];runpy.run_path(str(d),run_name='__main__')\""
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'user_prompt_submit'];runpy.run_path(str(d),run_name='__main__')\""
+            "command": "env PYTHONDONTWRITEBYTECODE=1 python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'user_prompt_submit'];runpy.run_path(str(d),run_name='__main__')\""
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'pre_tool_use'];runpy.run_path(str(d),run_name='__main__')\""
+            "command": "env PYTHONDONTWRITEBYTECODE=1 python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'pre_tool_use'];runpy.run_path(str(d),run_name='__main__')\""
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'subagent_stop'];runpy.run_path(str(d),run_name='__main__')\""
+            "command": "env PYTHONDONTWRITEBYTECODE=1 python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'subagent_stop'];runpy.run_path(str(d),run_name='__main__')\""
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'subagentstart'];runpy.run_path(str(d),run_name='__main__')\""
+            "command": "env PYTHONDONTWRITEBYTECODE=1 python3 -c \"import pathlib,runpy,sys;p=pathlib.Path.cwd();hits=[x/'.codex'/'hooks'/'dispatch.py' for x in (p,*p.parents) if (x/'.codex'/'hooks'/'dispatch.py').exists()];d=hits[0];sys.argv=[str(d),'subagentstart'];runpy.run_path(str(d),run_name='__main__')\""
           }
         ]
       }

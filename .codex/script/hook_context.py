@@ -65,6 +65,20 @@ PROTECTED = [".codex/agents", ".codex/skills", ".codex/hooks", ".codex/rules",
              ".codex/config.toml", ".codex/AGENTS.md", ".codex/script"]
 WRITE_HINTS = ["apply_patch", ">", ">>", "tee", "touch", "mkdir", "rm ", "mv ",
                "cp ", "cat >", "python3 -", "python -", "perl -", "sed -i"]
+CONTEXT_PREFIXES = ("$maw", "$saw", "$codex-", "/agent")
+CONTEXT_HINTS = [
+    "codex", ".codex", "maw", "saw", "task", "tasks", "agent", "skill",
+    "hook", "git", "commit", "quality", "security", "test", "workflow",
+    "lane", "state", "pipeline", "repo", "repository", "implement", "fix",
+    "build", "create", "add", "remove", "delete", "refactor", "feature",
+    "bug", "code", "file", "diff",
+]
+CONTEXT_HINTS_KO = [
+    "코덱스", "리포", "저장소", "깃", "커밋", "태스크", "작업", "상태",
+    "에이전트", "스킬", "훅", "품질", "보안", "검증", "워크플로우", "레인",
+    "구현", "수정", "고쳐", "개선", "추가", "삭제", "리팩토", "테스트",
+    "기능", "버그", "코드", "파일", "차이",
+]
 
 
 def mode_path() -> Path:
@@ -85,6 +99,16 @@ def git_note(root: Path, lang: str) -> str:
     proc = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=str(root),
                           text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return "" if proc.returncode == 0 else CTX[lang]["init"]
+
+
+def needs_context(prompt: str) -> bool:
+    text = prompt.strip()
+    if not text:
+        return False
+    if text.startswith(CONTEXT_PREFIXES) or "$" in text:
+        return True
+    low = text.lower()
+    return any(hint in low for hint in CONTEXT_HINTS) or any(hint in text for hint in CONTEXT_HINTS_KO)
 
 
 def build(prompt: str = "") -> str:
@@ -158,6 +182,8 @@ def prompt_output(prompt: str, lang: str) -> dict:
     parts = codex_shortcuts.parse(prompt)
     if parts:
         return codex_shortcuts.run(parts)
+    if not needs_context(prompt):
+        return {"continue": True}
     return {"continue": True, "hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
             "additionalContext": build(prompt)}}
 

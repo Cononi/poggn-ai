@@ -18,6 +18,7 @@ Apply `../_references/core-rules.md` first.
 - Check pool status and thread cap before spawning.
 - Close completed threads after collecting their summaries.
 - Reuse a thread only for the same workflow and the same ownership.
+- Re-dispatch only the lane that failed main review with the same contract.
 - Start fresh when files, branch, or TASK context changed.
 
 ## Expert Rules
@@ -29,6 +30,8 @@ Apply `../_references/core-rules.md` first.
 - Require summaries with changed files, verification, and residual risk.
 - Refresh git state before long-lived workers modify files.
 - Allow reuse only for same TASK, same lane, and same file ownership.
+- Reuse an existing worker for retry only with same TASK/lane/ownership.
+- Send only concise blocker findings and expected changes on retry.
 - Use worker label format role/task/lane/stage/files-scope.
 
 ## Expert Checks
@@ -56,6 +59,7 @@ Apply `../_references/core-rules.md` first.
 - Stale worker context is reused across workflows.
 - Thread cap is full with completed workers.
 - Worker ownership is missing or ambiguous.
+- Failed main review is retried without new findings.
 
 ## Verify
 
