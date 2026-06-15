@@ -192,3 +192,18 @@ def test_event_policy_triggers_only_producer_stage():
     assert codex_event_bus.is_producer(pol, row)
     row = {"stage": "qa", "agent": "qa"}
     assert not codex_event_bus.is_producer(pol, row)
+
+def test_verify_detects_gradle_build_file_for_java(tmp_path):
+    import codex_verify
+    (tmp_path / 'build.gradle').write_text('plugins { id \"java\" }')
+    cmds = codex_verify.detected_commands(tmp_path, ['src/main/java/App.java'], 'saw')
+    assert ['gradle', 'test', '--no-daemon'] in cmds
+
+
+def test_verify_prefers_gradle_wrapper_over_maven(tmp_path):
+    import codex_verify
+    (tmp_path / 'gradlew').write_text('#!/bin/sh')
+    (tmp_path / 'pom.xml').write_text('<project/>')
+    cmds = codex_verify.detected_commands(tmp_path, ['src/main/java/App.java'], 'saw')
+    assert cmds == [['./gradlew', 'test', '--no-daemon']]
+

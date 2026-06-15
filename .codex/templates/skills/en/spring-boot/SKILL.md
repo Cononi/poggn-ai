@@ -13,6 +13,14 @@ Apply `../_references/core-rules.md` first.
 - Separate request DTO, response DTO, and service command.
 - Place transaction boundaries on service methods.
 
+## Build Tool Contract
+
+- Inspect the existing project build tool first.
+- Treat gradlew, build.gradle, or settings.gradle as a Gradle project.
+- In Gradle projects, do not create or suggest pom.xml, mvnw, or mvn commands.
+- Prefer ./gradlew test and ./gradlew bootRun for verification and run commands.
+- If only Gradle files exist, use gradle test and ask before adding a wrapper.
+
 ## Procedure
 
 - Keep controllers to principal handling and DTO mapping.
@@ -36,6 +44,7 @@ Apply `../_references/core-rules.md` first.
 - Check whether business mutation lives in controllers.
 - Check whether principal and resource owner are both verified.
 - Check whether configuration properties use typed binding.
+- Check whether Maven files or mvn commands were added to a Gradle project.
 
 ## Failure Modes
 
@@ -56,6 +65,7 @@ Apply `../_references/core-rules.md` first.
 - Multi-step write lacks a transaction boundary.
 - Resource ownership check is missing.
 - Entity, password, or token leaks through a response.
+- Maven build files or Maven commands are added to a Gradle project.
 
 ## Verify
 

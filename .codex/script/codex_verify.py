@@ -95,8 +95,12 @@ def detected_commands(cwd: Path, files: list[str], mode: str) -> list[list[str]]
     if any(Path(x).suffix == '.py' for x in files) and (cwd / 'tests').exists():
         cmds.append([sys.executable, '-m', 'pytest', '-q'])
     if any(Path(x).suffix == '.java' for x in files):
+        gradle_files = ['build.gradle', 'build.gradle.kts',
+                        'settings.gradle', 'settings.gradle.kts']
         if (cwd / 'gradlew').exists():
             cmds.append(['./gradlew', 'test', '--no-daemon'])
+        elif any((cwd / name).exists() for name in gradle_files):
+            cmds.append(['gradle', 'test', '--no-daemon'])
         elif (cwd / 'mvnw').exists():
             cmds.append(['./mvnw', 'test'])
         elif (cwd / 'pom.xml').exists():

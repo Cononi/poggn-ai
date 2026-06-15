@@ -6,7 +6,7 @@ H2 인메모리 데이터베이스를 사용합니다.
 ## 실행
 
 ```bash
-mvn spring-boot:run
+./gradlew bootRun
 ```
 
 기본 계정은 `demo` / `password` 입니다.
