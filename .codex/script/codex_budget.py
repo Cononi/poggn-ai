@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse, json, re, subprocess
 from pathlib import Path
-import lib, codex_state
+import lib, codex_feature_infer, codex_state
 
 CODE = {'.java', '.kt', '.py', '.ts', '.tsx', '.js', '.jsx', '.go', '.rs'}
 DOC = {'.md', '.txt', '.adoc', '.rst'}
@@ -58,20 +58,13 @@ def numstat(cwd: Path, staged: bool, base: str) -> list[dict]:
 
 
 def text_features(text: str) -> list[str]:
-    table = {'order': 'order 주문', 'payment': 'payment 결제',
-             'member': 'member user 회원', 'product': 'product 상품',
-             'cart': 'cart 장바구니', 'coupon': 'coupon 쿠폰',
-             'post': 'post article board community forum 게시글 게시판 커뮤니티',
-             'comment': 'comment reply community forum 댓글 커뮤니티',
-             'frontend': 'frontend react ui 화면'}
-    low = text.lower(); found = []
-    for name, keys in table.items():
-        if any(k in low for k in keys.split()) and name not in found:
-            found.append(name)
+    found = codex_feature_infer.infer_features(text)
+    if codex_feature_infer.has_frontend(text) and 'frontend' not in found:
+        found.append('frontend')
     return found
 
 
-def estimate_lanes(features: list[str], agents: str) -> int:
+def estimate_parts(features: list[str], agents: str) -> dict:
     selected = {x.strip() for x in agents.split(',') if x.strip()}
     domain = [x for x in features if x != 'frontend'] or ['api']
     wants = lambda x: x in selected
@@ -90,15 +83,22 @@ def estimate_lanes(features: list[str], agents: str) -> int:
         'performance', 'test_writer', 'test_runner', 'qa', 'refactor', 'security',
         'architecture'
     }
-    count = 1 if default_agents or selected & contract_agents else 0
-    count += impl
-    per_impl_guards = ['test_writer', 'test_runner', 'qa', 'refactor', 'security']
-    for guard in per_impl_guards:
+    contract = 1 if default_agents or selected & contract_agents else 0
+    guard_units = max(1, len(domain))
+    guard_stages = 0
+    for guard in ['test_writer', 'test_runner', 'qa', 'refactor', 'security']:
         if wants(guard):
-            count += max(1, impl)
+            guard_stages += 1
     if wants('test'):
-        count += max(1, impl)
-    return count or 1
+        guard_stages += 1
+    guards = guard_units * guard_stages
+    return {'domain': len(domain), 'contract': contract, 'impl': impl,
+            'guard_stages': guard_stages, 'guards': guards,
+            'total': (contract + impl + guards) or 1}
+
+
+def estimate_lanes(features: list[str], agents: str) -> int:
+    return estimate_parts(features, agents)['total']
 
 
 def mode(args) -> str:
@@ -115,9 +115,15 @@ def scope(args) -> str:
 
 def analyze_text(args) -> dict:
     feats = text_features(args.text); lim = config()['maw']
-    lanes = estimate_lanes(feats, getattr(args, 'agents', ''))
+    parts = estimate_parts(feats, getattr(args, 'agents', ''))
+    lanes = parts['total']
     per = int(lim['max_lanes_per_wave'])
-    waves = max(1, (lanes + per - 1) // per)
+    lane_cap_waves = max(1, (lanes + per - 1) // per)
+    impl_waves = (parts['impl'] + per - 1) // per if parts['impl'] else 0
+    guard_unit_waves = (parts['domain'] + per - 1) // per if parts['guard_stages'] else 0
+    guard_overflow = max(0, guard_unit_waves - 1) * parts['guard_stages']
+    dependency_waves = parts['contract'] + impl_waves + parts['guard_stages'] + guard_overflow
+    waves = max(lane_cap_waves, dependency_waves, 1)
     decision = 'maw_split_waves' if waves > 1 else 'maw_single_wave'
     if len([x for x in feats if x != 'frontend']) <= 1:
         decision = 'saw_ok_or_maw_single_wave'

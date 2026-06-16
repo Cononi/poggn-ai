@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse, json, re
-import lib, codex_budget, codex_lanes, codex_skills, codex_state, codex_agent_pool
-FEATURE_WORDS = {
-    "product": "상품 product item catalog", "order": "주문 order checkout",
-    "payment": "결제 payment pay billing", "member": "회원 user member account",
-    "cart": "장바구니 cart basket", "coupon": "쿠폰 coupon discount",
-    "post": "게시글 post article board community forum",
-    "comment": "댓글 comment reply community forum",
-}
+import lib, codex_budget, codex_feature_infer, codex_lanes, codex_skills, codex_state, codex_agent_pool
 FEATURE_LABELS = {
     "product": "상품", "order": "주문", "payment": "결제", "member": "회원",
     "cart": "장바구니", "coupon": "쿠폰", "post": "게시글", "comment": "댓글",
+    "delivery": "배송", "review": "리뷰", "inventory": "재고",
+    "notification": "알림", "file": "파일", "report": "신고",
+    "reservation": "예약", "availability": "예약 가능 시간", "resource": "예약 자원",
+    "cancellation": "취소", "course": "강의", "lesson": "수업",
+    "enrollment": "수강", "progress": "진도", "quiz": "퀴즈",
+    "certificate": "수료증", "account": "고객사", "contact": "연락처",
+    "deal": "영업기회", "activity": "활동", "pipeline": "파이프라인",
+    "permission": "권한", "category": "카테고리", "tag": "태그",
+    "author": "작성자", "seller": "판매자", "buyer": "구매자",
+    "listing": "매물", "settlement": "정산", "dispute": "분쟁",
+    "chat": "채팅", "patient": "환자", "doctor": "의사",
+    "schedule": "일정", "media": "미디어",
     "api": "API", "project": "프로젝트", "contract": "계약",
 }
 AGENT_LABELS = {
@@ -128,7 +133,7 @@ DEFAULT_ROLES = {
     },
 }
 def words(text: str) -> set[str]:
-    return set(re.findall(r"[A-Za-z0-9가-힣_]+", text.lower()))
+    return codex_feature_infer.words(text)
 
 
 def compact(text: str, limit: int = 140) -> str:
@@ -184,17 +189,7 @@ def agent_exists(name: str) -> bool:
 def selected(value: str) -> set[str]:
     return {x.strip() for x in value.split(",") if x.strip()}
 def infer_features(text: str, explicit: str = "") -> list[str]:
-    if explicit:
-        return [x.strip() for x in explicit.split(",") if x.strip()]
-    q = words(text); found = []
-    if q & words("커뮤니티 community 게시판 board forum bulletin"):
-        found.extend(["post", "comment"])
-    for name, keys in FEATURE_WORDS.items():
-        if q & words(keys) and name not in found:
-            found.append(name)
-    if not found and q & words("쇼핑몰 ecommerce shop mall commerce"):
-        found = ["product", "member", "order", "cart"]
-    return found or ["api"]
+    return codex_feature_infer.infer_features(text, explicit)
 def allow(name: str, chosen: set[str]) -> bool:
     return not chosen or name in chosen
 def title(feature: str, suffix: str) -> str:
@@ -239,17 +234,23 @@ def _wave_of(rows: list[dict], key: str) -> int:
     return 1
 def assign_waves(rows: list[dict]) -> list[dict]:
     max_lanes = int(codex_budget.config()["maw"].get("max_lanes_per_wave", 6))
-    out = []; feature_wave = 2; used = 0
+    out = []; counts: dict[int, int] = {}; feature_wave = 2
     for row in rows:
         stage = row.get("stage", "implement")
-        if stage == "foundation": num = 1
+        if stage == "foundation":
+            num = 1
         elif stage == "implement":
-            if used >= max_lanes: feature_wave += 1; used = 0
-            num = feature_wave; used += 1
+            num = feature_wave
+            while counts.get(num, 0) >= max_lanes:
+                num += 1
+            feature_wave = num
         else:
             base = max([_wave_of(out, x) for x in row.get("deps", [])] or [feature_wave])
             num = base + 1
+            while counts.get(num, 0) >= max_lanes:
+                num += 1
         item = dict(row); item["wave"] = wave(num); out.append(item)
+        counts[num] = counts.get(num, 0) + 1
     return out
 def needs_contract(chosen: set[str], cfg: dict) -> bool:
     if not chosen:
@@ -282,18 +283,24 @@ def plan(text: str, features: str = "", agents: str = "", guards: str = "auto") 
     return assign_waves([enrich(row, text) for row in rows])
 def review_rows(feats: list[str], chosen: set[str], rows: list[dict]) -> list[dict]:
     out = []
+    impl_by_feature: dict[str, list[dict]] = {}
     for row in [x for x in rows if x.get("stage") == "implement"]:
-        feat = row.get("feature", "work"); prev = row["key"]
+        impl_by_feature.setdefault(row.get("feature", "work"), []).append(row)
+    for feat in feats:
+        impls = impl_by_feature.get(feat, [])
+        if not impls:
+            continue
+        deps = [x["key"] for x in impls]
         for agent, label in [("test_writer", "Test Code"), ("test_runner", "Run Tests"),
                              ("qa", "QA Review"), ("refactor", "Refactor Gate"),
                              ("security", "Security Gate")]:
             if allow(agent, chosen) or (agent.startswith("test") and "test" in chosen):
-                key = f"{agent}:{feat}:{row['agent']}"
-                out.append(review(key, prev, feat, agent, label)); prev = key
+                key = f"{agent}:{feat}:feature"
+                out.append(review(key, deps, feat, agent, label)); deps = [key]
     return out
-def review(key: str, dep: str, feat: str, agent: str, name: str) -> dict:
+def review(key: str, deps: list[str], feat: str, agent: str, name: str) -> dict:
     return {"key": key, "title": f"{name}: {title(feat, 'work')}",
-            "agent": agent, "feature": feat, "stage": agent, "deps": [dep]}
+            "agent": agent, "feature": feat, "stage": agent, "deps": deps}
 def task_id(tasks: list[dict]) -> str: return f"T{len(tasks) + 1:03d}"
 def add_task(cur: dict, tasks: list[dict], row: dict, skills: list[str]) -> str:
     tid = task_id(tasks)

@@ -155,6 +155,23 @@ def test_budget_suggest_splits_community_stack():
     assert data['decision'] == 'maw_split_waves'
 
 
+def test_feature_infer_uses_presets_and_generic_slices():
+    import codex_feature_infer
+    assert codex_feature_infer.infer_features(
+        'spring boot react 쇼핑몰 결제 배송 리뷰'
+    ) == ['product', 'member', 'cart', 'order', 'payment', 'delivery']
+    hospital = codex_feature_infer.infer_features(
+        '병원 예약 사이트 의사 환자 일정 관리'
+    )
+    assert hospital[:4] == ['patient', 'doctor', 'schedule', 'reservation']
+    trade = codex_feature_infer.infer_features(
+        '중고거래 앱 채팅 후기 분쟁 처리'
+    )
+    assert 'listing' in trade
+    assert 'chat' in trade
+    assert 'review' in trade
+
+
 def test_context_pack_without_workflow_fails_cleanly():
     import subprocess
     proc = subprocess.run([sys.executable, '.codex/script/codex_context.py', 'pack'],
@@ -212,12 +229,27 @@ def test_work_items_include_spark_lane_contract():
     assert "contract" in keys
     assert "impl:post:backend" in keys
     assert "impl:comment:frontend" in keys
+    assert "qa:post:feature" in keys
+    assert "security:comment:feature" in keys
     assert "Spark lane budget" in backend["budget_note"]
     assert any("backend" in x or "src/main" in x for x in backend["owner_files"])
     assert any("frontend" in x or "client" in x for x in frontend["owner_files"])
     assert backend["forbidden_files"]
     assert backend["verification"]
     assert backend["done_contract"]
+
+
+def test_work_items_split_unknown_site_by_generic_features():
+    import codex_work_items
+    rows = codex_work_items.plan(
+        "병원 예약 사이트 의사 환자 일정 관리 react",
+        agents="backend,frontend,qa",
+        guards="static",
+    )
+    keys = {x["key"] for x in rows}
+    assert "impl:patient:backend" in keys
+    assert "impl:doctor:frontend" in keys
+    assert "impl:reservation:backend" in keys
 
 
 def test_event_policy_triggers_only_producer_stage():
