@@ -38,7 +38,7 @@ OWNER_HINTS = {
         "verification": ["backend targeted tests"],
     },
     "frontend": {
-        "owner_files": ["frontend/**", "client/**", "src/**/*.ts", "src/**/*.tsx"],
+        "owner_files": ["frontend/**", "client/**", "src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
         "forbidden_files": ["backend/**", "server/**", "src/main/java/**"],
         "verification": ["frontend targeted tests or build"],
     },
@@ -106,6 +106,33 @@ def contract_scope(agent: str) -> dict:
             "acceptance criteria are checked",
             "verification result and residual risk are reported",
         ],
+    }
+
+
+def frontend_framework(text: str) -> str:
+    q = words(text)
+    has_react = bool(q & words("react jsx tsx next"))
+    has_vue = bool(q & words("vue nuxt sfc"))
+    if has_react and has_vue:
+        return "react/vue"
+    if has_vue:
+        return "vue"
+    return "react" if has_react else "react/vue"
+
+
+def frontend_contract(row: dict, request_text: str) -> dict:
+    framework = frontend_framework(request_text)
+    state_unit = "hook" if framework == "react" else ("composable" if framework == "vue" else "hook/composable")
+    feature = row.get("feature", "feature")
+    return {
+        "frontend_contract": [
+            f"framework={framework}; use typed client, {state_unit}, feature components, page composition",
+            "page only routes/data-boundary/composition; no API/business/validation logic",
+            "component has one semantic UI responsibility; split >160 lines; >250 lines is blocker",
+            "state/API/validation/pending/dirty/error live in typed client or hook/composable",
+            "loading/error/empty/disabled, a11y labels/focus/keyboard, responsive overflow required",
+            f"feature={feature}; shared UI only after 3 repeated uses with stable props",
+        ]
     }
 
 
@@ -179,6 +206,14 @@ def enrich(row: dict, request_text: str = "") -> dict:
     item.setdefault("budget_note", budget_note())
     for key, value in contract_scope(item.get("agent", "")).items():
         item.setdefault(key, value)
+    if item.get("agent") == "frontend":
+        for key, value in frontend_contract(item, request_text).items():
+            item.setdefault(key, value)
+        item.setdefault("done_contract", []).extend([
+            "page is composition only",
+            "component line count reviewed: target <=160, split if >250",
+            "typed client and hook/composable boundaries are visible",
+        ])
     return item
 def role_cfg() -> dict:
     path = lib.find_codex() / "state" / "agent_roles.json"
@@ -309,7 +344,7 @@ def add_task(cur: dict, tasks: list[dict], row: dict, skills: list[str]) -> str:
             "feature": row["feature"], "status": "todo", "commit": "", "commits": []}
     for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
                 "budget_note", "owner_files", "forbidden_files", "verification",
-                "done_contract"]:
+                "done_contract", "frontend_contract"]:
         if row.get(key):
             item[key] = row[key]
     tasks.append(item)
@@ -326,7 +361,7 @@ def add_lane(cur: dict, row: dict, task: str, skills: list[str], deps: list[str]
             "deps": deps, "upstream_lane_id": deps[-1] if deps else "", "key": row["key"]}
     for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
                 "budget_note", "owner_files", "forbidden_files", "verification",
-                "done_contract"]:
+                "done_contract", "frontend_contract"]:
         if row.get(key):
             item[key] = row[key]
     item["worker_name"] = codex_agent_pool.label(item); item["reuse_key"] = codex_agent_pool.reuse_key(item)
@@ -357,7 +392,8 @@ def cmd_apply(args) -> int:
                         "purpose": row.get("purpose"),
                         "acceptance": row.get("acceptance"),
                         "owner_files": row.get("owner_files"),
-                        "verification": row.get("verification")})
+                        "verification": row.get("verification"),
+                        "frontend_contract": row.get("frontend_contract")})
     codex_state.write_tasks(cur, tasks); print(json.dumps(created, ensure_ascii=False, indent=2)); return 0
 def main() -> int:
     p = argparse.ArgumentParser(); sub = p.add_subparsers(dest="cmd", required=True)

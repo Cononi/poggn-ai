@@ -66,6 +66,7 @@ def slim(row: dict) -> dict:
             "owner_files": row.get("owner_files", [])[:4],
             "forbidden_files": row.get("forbidden_files", [])[:4],
             "verification": row.get("verification", [])[:3],
+            "frontend_contract": row.get("frontend_contract", [])[:3],
             "deps": row.get("deps", [])}
 
 
@@ -83,17 +84,22 @@ def instruction(row: dict) -> str:
     verification = compact(row.get("verification", []), 160)
     done = compact(row.get("done_contract", []), 180)
     budget = compact(row.get("budget_note", ""), 140)
+    frontend = compact(row.get("frontend_contract", []), 240)
+    frontend_ko = f"frontend_contract={frontend} " if frontend else ""
+    frontend_en = f"Frontend contract={frontend}. " if frontend else ""
     if ko():
         return (f"에이전트 {row['agent']}를 {label}로 사용하세요. 재사용 키={key}. "
                 f"목적={purpose} 완료기준={acceptance} "
                 f"owner_files={owner} forbidden_files={forbidden} "
                 f"verification={verification} done_contract={done} budget={budget} "
+                f"{frontend_ko}"
                 f"단계={row.get('stage','implement')}. 작업 위치는 {row['worktree']}로 제한합니다. "
                 f"상위 레인={deps}. 스킬={skills}. 루트에서 완료 명령: {cmd}")
     return (f"Use agent {row['agent']} as {label}. Reuse key={key}. "
             f"Purpose={purpose}. Acceptance={acceptance}. "
             f"Owner files={owner}. Forbidden files={forbidden}. "
             f"Verification={verification}. Done contract={done}. Budget={budget}. "
+            f"{frontend_en}"
             f"Stage={row.get('stage','implement')}. Work only in {row['worktree']}. "
             f"Upstream lanes={deps}. Skills={skills}. Finish from root with: {cmd}")
 
@@ -104,7 +110,7 @@ def write_csv(c: dict, rows: list[dict], name: str) -> Path:
               "lane_id", "task_id", "agent", "stage", "feature", "skills",
               "purpose", "acceptance", "non_goals",
               "owner_files", "forbidden_files", "verification", "done_contract",
-              "budget_note", "worktree", "branch", "deps", "instruction"]
+              "frontend_contract", "budget_note", "worktree", "branch", "deps", "instruction"]
     with out.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields); w.writeheader()
         for row in rows:
@@ -121,6 +127,7 @@ def write_csv(c: dict, rows: list[dict], name: str) -> Path:
                         "forbidden_files": compact(row.get("forbidden_files")),
                         "verification": compact(row.get("verification")),
                         "done_contract": compact(row.get("done_contract")),
+                        "frontend_contract": compact(row.get("frontend_contract")),
                         "budget_note": compact(row.get("budget_note")),
                         "worker_label": codex_agent_pool.label(row),
                         "reuse_key": codex_agent_pool.reuse_key(row),

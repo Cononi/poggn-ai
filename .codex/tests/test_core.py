@@ -239,6 +239,28 @@ def test_work_items_include_spark_lane_contract():
     assert backend["done_contract"]
 
 
+def test_frontend_lane_has_component_contract_for_react_and_vue():
+    import codex_work_items
+    react_rows = codex_work_items.plan(
+        "react mui community",
+        agents="frontend",
+    )
+    react_frontend = next(x for x in react_rows if x["agent"] == "frontend")
+    assert any("framework=react" in x for x in react_frontend["frontend_contract"])
+    assert any("page only" in x for x in react_frontend["frontend_contract"])
+    assert any("split >160" in x for x in react_frontend["frontend_contract"])
+    assert any("page is composition only" in x for x in react_frontend["done_contract"])
+
+    vue_rows = codex_work_items.plan(
+        "vue 쇼핑몰 상품 목록",
+        agents="frontend",
+    )
+    vue_frontend = next(x for x in vue_rows if x["agent"] == "frontend")
+    assert any("framework=vue" in x for x in vue_frontend["frontend_contract"])
+    assert any("composable" in x for x in vue_frontend["frontend_contract"])
+    assert "src/**/*.vue" in vue_frontend["owner_files"]
+
+
 def test_work_items_split_unknown_site_by_generic_features():
     import codex_work_items
     rows = codex_work_items.plan(
