@@ -11,9 +11,9 @@ RISK = re.compile(r'(?i)(auth|role|permission|security|payment|secret|token|'
 DEFAULTS = {
     'saw': {'max_files': 6, 'max_code_files': 4,
             'max_lines': 260, 'max_new_files': 3},
-    'maw': {'max_lanes_per_wave': 6, 'max_files_per_wave': 80,
-            'max_lines_per_wave': 3000, 'max_files_per_lane': 30,
-            'max_lines_per_lane': 900, 'allow_epic_total_over_budget': True},
+    'maw': {'max_lanes_per_wave': 4, 'max_files_per_wave': 32,
+            'max_lines_per_wave': 1400, 'max_files_per_lane': 8,
+            'max_lines_per_lane': 350, 'allow_epic_total_over_budget': True},
 }
 
 
@@ -61,24 +61,43 @@ def text_features(text: str) -> list[str]:
     table = {'order': 'order 주문', 'payment': 'payment 결제',
              'member': 'member user 회원', 'product': 'product 상품',
              'cart': 'cart 장바구니', 'coupon': 'coupon 쿠폰',
+             'post': 'post article board community forum 게시글 게시판 커뮤니티',
+             'comment': 'comment reply community forum 댓글 커뮤니티',
              'frontend': 'frontend react ui 화면'}
     low = text.lower(); found = []
     for name, keys in table.items():
-        if any(k in low for k in keys.split()): found.append(name)
+        if any(k in low for k in keys.split()) and name not in found:
+            found.append(name)
     return found
 
 
 def estimate_lanes(features: list[str], agents: str) -> int:
     selected = {x.strip() for x in agents.split(',') if x.strip()}
-    has = lambda x: not selected or x in selected
-    count = 0
-    if has('architecture'): count += 1
-    if has('database') and features: count += 1
-    if has('backend'): count += max(1, len([x for x in features if x != 'frontend']))
-    if has('frontend') and 'frontend' in features: count += max(1, len(features) - 1)
-    if has('test'): count += 1
-    if has('qa'): count += 2
-    if has('security'): count += 1
+    domain = [x for x in features if x != 'frontend'] or ['api']
+    wants = lambda x: x in selected
+    default_agents = not selected
+    impl = 0
+    if wants('database'):
+        impl += 1
+    if default_agents or wants('backend'):
+        impl += max(1, len(domain))
+    if (default_agents and 'frontend' in features) or wants('frontend'):
+        impl += max(1, len(domain))
+    if wants('integration'):
+        impl += max(1, len(domain))
+    contract_agents = {
+        'backend', 'frontend', 'database', 'integration', 'devops', 'docs',
+        'performance', 'test_writer', 'test_runner', 'qa', 'refactor', 'security',
+        'architecture'
+    }
+    count = 1 if default_agents or selected & contract_agents else 0
+    count += impl
+    per_impl_guards = ['test_writer', 'test_runner', 'qa', 'refactor', 'security']
+    for guard in per_impl_guards:
+        if wants(guard):
+            count += max(1, impl)
+    if wants('test'):
+        count += max(1, impl)
     return count or 1
 
 

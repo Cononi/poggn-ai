@@ -6,11 +6,13 @@ FEATURE_WORDS = {
     "product": "상품 product item catalog", "order": "주문 order checkout",
     "payment": "결제 payment pay billing", "member": "회원 user member account",
     "cart": "장바구니 cart basket", "coupon": "쿠폰 coupon discount",
+    "post": "게시글 post article board community forum",
+    "comment": "댓글 comment reply community forum",
 }
 FEATURE_LABELS = {
     "product": "상품", "order": "주문", "payment": "결제", "member": "회원",
-    "cart": "장바구니", "coupon": "쿠폰", "api": "API", "project": "프로젝트",
-    "contract": "계약",
+    "cart": "장바구니", "coupon": "쿠폰", "post": "게시글", "comment": "댓글",
+    "api": "API", "project": "프로젝트", "contract": "계약",
 }
 AGENT_LABELS = {
     "architecture": "API/데이터/보안 계약", "backend": "backend API/service",
@@ -19,6 +21,95 @@ AGENT_LABELS = {
     "performance": "성능", "test_writer": "테스트 작성", "test_runner": "테스트 실행",
     "qa": "QA", "refactor": "리팩토링", "security": "보안 검토",
 }
+OWNER_HINTS = {
+    "architecture": {
+        "owner_files": [".codex-state/*/DECISIONS.md", ".codex-state/*/RISKS.md"],
+        "forbidden_files": ["implementation source files unless contract-only stubs are requested"],
+        "verification": ["contract review"],
+    },
+    "backend": {
+        "owner_files": ["backend/**", "server/**", "src/main/**", "src/test/**"],
+        "forbidden_files": ["frontend/**", "client/**", "ui/**"],
+        "verification": ["backend targeted tests"],
+    },
+    "frontend": {
+        "owner_files": ["frontend/**", "client/**", "src/**/*.ts", "src/**/*.tsx"],
+        "forbidden_files": ["backend/**", "server/**", "src/main/java/**"],
+        "verification": ["frontend targeted tests or build"],
+    },
+    "database": {
+        "owner_files": ["**/migration/**", "**/schema/**", "**/entity/**", "**/repository/**"],
+        "forbidden_files": ["unrelated UI files"],
+        "verification": ["migration/schema validation or repository tests"],
+    },
+    "integration": {
+        "owner_files": ["**/integration/**", "**/client/**", "**/adapter/**"],
+        "forbidden_files": ["unrelated domain/UI files"],
+        "verification": ["integration contract tests or documented mock verification"],
+    },
+    "devops": {
+        "owner_files": [".github/**", "Dockerfile", "docker-compose*.yml", "**/build.gradle", "**/package.json"],
+        "forbidden_files": ["business logic unless required by delivery config"],
+        "verification": ["config lint/build command"],
+    },
+    "docs": {
+        "owner_files": ["README*", "docs/**", ".codex-state/**"],
+        "forbidden_files": ["application code"],
+        "verification": ["docs review"],
+    },
+    "performance": {
+        "owner_files": ["files directly related to measured bottleneck"],
+        "forbidden_files": ["broad rewrites without benchmark evidence"],
+        "verification": ["targeted performance or regression check"],
+    },
+    "test_writer": {
+        "owner_files": ["**/*Test.*", "**/*.test.*", "**/__tests__/**", "src/test/**"],
+        "forbidden_files": ["production behavior changes"],
+        "verification": ["targeted test run"],
+    },
+    "test_runner": {
+        "owner_files": [".codex-state/**"],
+        "forbidden_files": ["production source changes"],
+        "verification": ["run configured test command"],
+    },
+    "qa": {
+        "owner_files": [".codex-state/**"],
+        "forbidden_files": ["production source changes"],
+        "verification": ["acceptance review"],
+    },
+    "refactor": {
+        "owner_files": ["files from upstream lane only"],
+        "forbidden_files": ["behavior changes without tests"],
+        "verification": ["targeted regression tests"],
+    },
+    "security": {
+        "owner_files": [".codex-state/**", "auth/security related files only when fixing findings"],
+        "forbidden_files": ["security weakening, secret exposure, broad unrelated rewrites"],
+        "verification": ["security gate and negative auth/input checks"],
+    },
+}
+
+
+def contract_scope(agent: str) -> dict:
+    hint = OWNER_HINTS.get(agent, OWNER_HINTS["performance"])
+    return {
+        "owner_files": hint["owner_files"],
+        "forbidden_files": hint["forbidden_files"],
+        "verification": hint["verification"],
+        "done_contract": [
+            "changed files stay inside owner_files",
+            "acceptance criteria are checked",
+            "verification result and residual risk are reported",
+        ],
+    }
+
+
+def budget_note() -> str:
+    maw = codex_budget.config()["maw"]
+    return (f"Spark lane budget: <= {maw.get('max_files_per_lane')} files, "
+            f"<= {maw.get('max_lines_per_lane')} changed lines; split when larger.")
+
+
 DEFAULT_ROLES = {
     "implementation_agents": ["backend", "frontend", "database", "integration",
                                "devops", "docs", "performance"],
@@ -80,6 +171,9 @@ def enrich(row: dict, request_text: str = "") -> dict:
     for key, value in contract_for(row, request_text).items():
         if value:
             item.setdefault(key, value)
+    item.setdefault("budget_note", budget_note())
+    for key, value in contract_scope(item.get("agent", "")).items():
+        item.setdefault(key, value)
     return item
 def role_cfg() -> dict:
     path = lib.find_codex() / "state" / "agent_roles.json"
@@ -93,8 +187,11 @@ def infer_features(text: str, explicit: str = "") -> list[str]:
     if explicit:
         return [x.strip() for x in explicit.split(",") if x.strip()]
     q = words(text); found = []
+    if q & words("커뮤니티 community 게시판 board forum bulletin"):
+        found.extend(["post", "comment"])
     for name, keys in FEATURE_WORDS.items():
-        if q & words(keys): found.append(name)
+        if q & words(keys) and name not in found:
+            found.append(name)
     if not found and q & words("쇼핑몰 ecommerce shop mall commerce"):
         found = ["product", "member", "order", "cart"]
     return found or ["api"]
@@ -154,12 +251,20 @@ def assign_waves(rows: list[dict]) -> list[dict]:
             num = base + 1
         item = dict(row); item["wave"] = wave(num); out.append(item)
     return out
+def needs_contract(chosen: set[str], cfg: dict) -> bool:
+    if not chosen:
+        return True
+    contract_relevant = set(cfg.get("implementation_agents", [])) | set(cfg.get("guard_agents", []))
+    return bool(chosen & contract_relevant)
+
+
 def plan(text: str, features: str = "", agents: str = "", guards: str = "auto") -> list[dict]:
     cfg = role_cfg(); chosen = selected(agents); feats = infer_features(text, features); rows = []
-    if allow("architecture", chosen):
+    contract_enabled = needs_contract(chosen, cfg)
+    if contract_enabled:
         rows.append({"key": "contract", "title": "API contract", "agent": "architecture",
                      "feature": "contract", "stage": "foundation", "deps": []})
-    deps0 = ["contract"] if allow("architecture", chosen) else []
+    deps0 = ["contract"] if contract_enabled else []
     for agent in feature_agents(text, chosen, cfg):
         for feat in feats:
             deps = list(deps0)
@@ -195,7 +300,9 @@ def add_task(cur: dict, tasks: list[dict], row: dict, skills: list[str]) -> str:
     item = {"id": tid, "title": row["title"], "agent": row["agent"],
             "skills": skills, "wave": row["wave"], "stage": row["stage"],
             "feature": row["feature"], "status": "todo", "commit": "", "commits": []}
-    for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary"]:
+    for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
+                "budget_note", "owner_files", "forbidden_files", "verification",
+                "done_contract"]:
         if row.get(key):
             item[key] = row[key]
     tasks.append(item)
@@ -210,7 +317,9 @@ def add_lane(cur: dict, row: dict, task: str, skills: list[str], deps: list[str]
             "feature": row["feature"], "status": "todo", "commit": "", "commits": [],
             "branch": codex_lanes.branch_name(cur, lid), "worktree": str(codex_lanes.worktree_path(cur, lid)),
             "deps": deps, "upstream_lane_id": deps[-1] if deps else "", "key": row["key"]}
-    for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary"]:
+    for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
+                "budget_note", "owner_files", "forbidden_files", "verification",
+                "done_contract"]:
         if row.get(key):
             item[key] = row[key]
     item["worker_name"] = codex_agent_pool.label(item); item["reuse_key"] = codex_agent_pool.reuse_key(item)
@@ -239,7 +348,9 @@ def cmd_apply(args) -> int:
                         "wave": row["wave"], "agent": row["agent"],
                         "deps": deps, "title": row["title"],
                         "purpose": row.get("purpose"),
-                        "acceptance": row.get("acceptance")})
+                        "acceptance": row.get("acceptance"),
+                        "owner_files": row.get("owner_files"),
+                        "verification": row.get("verification")})
     codex_state.write_tasks(cur, tasks); print(json.dumps(created, ensure_ascii=False, indent=2)); return 0
 def main() -> int:
     p = argparse.ArgumentParser(); sub = p.add_subparsers(dest="cmd", required=True)

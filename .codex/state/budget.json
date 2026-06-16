@@ -6,11 +6,11 @@
     "max_new_files": 3
   },
   "maw": {
-    "max_lanes_per_wave": 6,
-    "max_files_per_wave": 80,
-    "max_lines_per_wave": 3000,
-    "max_files_per_lane": 30,
-    "max_lines_per_lane": 900,
+    "max_lanes_per_wave": 4,
+    "max_files_per_wave": 32,
+    "max_lines_per_wave": 1400,
+    "max_files_per_lane": 8,
+    "max_lines_per_lane": 350,
     "allow_epic_total_over_budget": true
   }
 }

@@ -141,6 +141,20 @@ def test_budget_suggest_recommends_maw_for_order_payment():
     assert data['decision'] in {'maw_split_waves', 'maw_single_wave'}
 
 
+def test_budget_suggest_splits_community_stack():
+    import codex_budget
+    Args = type('Args', (), {
+        'text': 'spring boot jpa h2 react mui community',
+        'cwd': '', 'staged': False, 'base': '',
+        'mode': 'auto', 'for_ai': True,
+        'agents': 'backend,frontend,test_writer,qa,security',
+    })
+    data = codex_budget.analyze(Args())
+    assert 'post' in data['features']
+    assert 'comment' in data['features']
+    assert data['decision'] == 'maw_split_waves'
+
+
 def test_context_pack_without_workflow_fails_cleanly():
     import subprocess
     proc = subprocess.run([sys.executable, '.codex/script/codex_context.py', 'pack'],
@@ -183,6 +197,27 @@ def test_work_items_general_implementation_agents():
     assert "impl:order:backend" in keys
     assert "impl:payment:frontend" in keys
     assert "impl:order:integration" in keys
+
+
+def test_work_items_include_spark_lane_contract():
+    import codex_work_items
+    rows = codex_work_items.plan(
+        "spring boot jpa h2 react mui community",
+        agents="backend,frontend,test_writer,qa,security",
+        guards="static",
+    )
+    keys = {x["key"] for x in rows}
+    backend = next(x for x in rows if x["agent"] == "backend")
+    frontend = next(x for x in rows if x["agent"] == "frontend")
+    assert "contract" in keys
+    assert "impl:post:backend" in keys
+    assert "impl:comment:frontend" in keys
+    assert "Spark lane budget" in backend["budget_note"]
+    assert any("backend" in x or "src/main" in x for x in backend["owner_files"])
+    assert any("frontend" in x or "client" in x for x in frontend["owner_files"])
+    assert backend["forbidden_files"]
+    assert backend["verification"]
+    assert backend["done_contract"]
 
 
 def test_event_policy_triggers_only_producer_stage():

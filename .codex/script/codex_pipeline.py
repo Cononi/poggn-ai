@@ -62,7 +62,11 @@ def slim(row: dict) -> dict:
             "agent": row.get("agent"), "stage": row.get("stage"),
             "feature": row.get("feature"), "wave": row.get("wave"),
             "title": compact(row.get("title"), 80), "purpose": compact(purpose, 100),
-            "acceptance": compact(acceptance, 100), "deps": row.get("deps", [])}
+            "acceptance": compact(acceptance, 100),
+            "owner_files": row.get("owner_files", [])[:4],
+            "forbidden_files": row.get("forbidden_files", [])[:4],
+            "verification": row.get("verification", [])[:3],
+            "deps": row.get("deps", [])}
 
 
 def instruction(row: dict) -> str:
@@ -74,13 +78,22 @@ def instruction(row: dict) -> str:
     label = codex_agent_pool.label(row); key = codex_agent_pool.reuse_key(row)
     purpose = compact(row.get("purpose") or codex_trace_view.fallback_purpose(row), 160)
     acceptance = compact(row.get("acceptance") or codex_trace_view.fallback_acceptance(row), 160)
+    owner = compact(row.get("owner_files", []), 180)
+    forbidden = compact(row.get("forbidden_files", []), 180)
+    verification = compact(row.get("verification", []), 160)
+    done = compact(row.get("done_contract", []), 180)
+    budget = compact(row.get("budget_note", ""), 140)
     if ko():
         return (f"에이전트 {row['agent']}를 {label}로 사용하세요. 재사용 키={key}. "
                 f"목적={purpose} 완료기준={acceptance} "
+                f"owner_files={owner} forbidden_files={forbidden} "
+                f"verification={verification} done_contract={done} budget={budget} "
                 f"단계={row.get('stage','implement')}. 작업 위치는 {row['worktree']}로 제한합니다. "
                 f"상위 레인={deps}. 스킬={skills}. 루트에서 완료 명령: {cmd}")
     return (f"Use agent {row['agent']} as {label}. Reuse key={key}. "
             f"Purpose={purpose}. Acceptance={acceptance}. "
+            f"Owner files={owner}. Forbidden files={forbidden}. "
+            f"Verification={verification}. Done contract={done}. Budget={budget}. "
             f"Stage={row.get('stage','implement')}. Work only in {row['worktree']}. "
             f"Upstream lanes={deps}. Skills={skills}. Finish from root with: {cmd}")
 
@@ -90,7 +103,8 @@ def write_csv(c: dict, rows: list[dict], name: str) -> Path:
     fields = ["job_name", "worker_name", "worker_label", "reuse_key", "wave",
               "lane_id", "task_id", "agent", "stage", "feature", "skills",
               "purpose", "acceptance", "non_goals",
-              "worktree", "branch", "deps", "instruction"]
+              "owner_files", "forbidden_files", "verification", "done_contract",
+              "budget_note", "worktree", "branch", "deps", "instruction"]
     with out.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields); w.writeheader()
         for row in rows:
@@ -103,6 +117,11 @@ def write_csv(c: dict, rows: list[dict], name: str) -> Path:
                         "purpose": compact(row.get("purpose")),
                         "acceptance": compact(row.get("acceptance")),
                         "non_goals": compact(row.get("non_goals")),
+                        "owner_files": compact(row.get("owner_files")),
+                        "forbidden_files": compact(row.get("forbidden_files")),
+                        "verification": compact(row.get("verification")),
+                        "done_contract": compact(row.get("done_contract")),
+                        "budget_note": compact(row.get("budget_note")),
                         "worker_label": codex_agent_pool.label(row),
                         "reuse_key": codex_agent_pool.reuse_key(row),
                         "skills": ",".join(row.get("skills", [])),
