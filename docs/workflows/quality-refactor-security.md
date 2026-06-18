@@ -35,12 +35,14 @@ $codex-verify gate --staged --for-ai
 이 gate는 아래를 실행합니다.
 
 ```text
+staged budget gate
 staged quality gate
-changed-code targeted test
 staged security gate
+changed-code targeted test
 ```
 
 코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.
+기본 검증은 modified 파일과 untracked 신규 파일을 함께 봅니다.
 
 테스트 명령은 아래 파일에 설정합니다.
 

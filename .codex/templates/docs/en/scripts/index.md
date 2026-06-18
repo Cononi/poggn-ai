@@ -12,8 +12,10 @@ codex_task_git.py    TASK to commit links, diff, revert
 codex_lanes.py       MAW lanes and worktrees
 codex_waves.py       split MAW lanes into execution waves
 codex_work_items.py  split requests into feature TASKs
+codex_design_gate.py classify product, platform, framework, and stack contracts
 codex_saw.py         SAW micro workflow
 codex_verify.py      minimal verification before TASK completion
+codex_test_runner.py no-dependency runner for trusted .codex tests
 codex_quality.py     code quality, frontend TSX, duplicate checks
 codex_security.py    secret, token, private key checks
 codex_refactor.py    refactor need analysis
@@ -55,6 +57,7 @@ $codex-verify gate --staged --for-ai
 The order is:
 
 ```text
+budget gate
 quality gate
 security gate
 changed-code test command
@@ -62,7 +65,9 @@ changed-code test command
 
 Docs-only changes can skip tests.
 
-Code changes require a test command.
+Code changes require a test command. The default verification includes both
+modified files and new untracked files. Internal `.codex` Python changes run the
+trusted no-dependency test runner automatically.
 
 Commands can be configured in `.codex/state/verify.json`.
 
@@ -75,6 +80,9 @@ Commands can be configured in `.codex/state/verify.json`.
 If no command is configured, package.json, pytest, Gradle, and Maven are detected.
 
 If no command is found, the gate fails.
+
+`codex_test_runner.py` is only for trusted `.codex/tests/test_*.py` files.
+Do not use it to execute arbitrary test files from an external source.
 
 ## risk, context, budget
 

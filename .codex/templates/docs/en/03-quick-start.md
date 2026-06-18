@@ -28,3 +28,17 @@ $codex-task trace --for-ai
 ```text
 $codex-saw suggest --text "fix dto field mapping"
 ```
+
+
+## Initial Design Gate
+
+Large requests are classified before implementation by product type,
+platform/runtime, framework/engine, capability, and stack decision.
+
+```text
+$codex-work-items suggest --text "spring boot react community" --agents backend,frontend
+```
+
+Spring Boot requests get a domain-first Java package layout contract.
+React-only requests ask whether the target is Vite SPA or Next.js/SSR first.
+Next.js requests get a `src/app` App Router and server/client boundary contract.

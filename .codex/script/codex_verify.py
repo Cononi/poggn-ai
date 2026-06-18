@@ -6,10 +6,30 @@ import lib
 
 CODE_EXT = {'.java', '.kt', '.py', '.ts', '.tsx', '.js', '.jsx', '.go', '.rs'}
 DOC_EXT = {'.md', '.txt', '.adoc', '.rst'}
-SKIP = {'.git', '.codex-state', 'node_modules', 'dist', 'build'}
+SKIP = {'.git', '.codex-state', 'node_modules', 'dist', 'build', '.venv', 'venv', '__pycache__'}
+CODEX_INTERNAL = ('.codex/script/', '.codex/tests/', '.codex/hooks/')
+
+
+def internal_untracked(cwd: Path) -> list[str]:
+    """Return untracked internal .codex files even when ignored by git."""
+    rows = []
+    for prefix in CODEX_INTERNAL:
+        base = cwd / prefix
+        if not base.exists():
+            continue
+        for path in base.rglob('*'):
+            if path.is_file():
+                rel = path.relative_to(cwd).as_posix()
+                tracked = subprocess.run(['git', 'ls-files', '--error-unmatch', rel],
+                                         cwd=str(cwd), stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                if tracked.returncode:
+                    rows.append(rel)
+    return rows
 
 
 def run(cmd: list[str], cwd: Path, timeout: int) -> dict:
+    """Run a verification command with timeout and compact captured output."""
     try:
         p = subprocess.run(cmd, cwd=str(cwd), text=True, timeout=timeout,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -23,6 +43,7 @@ def run(cmd: list[str], cwd: Path, timeout: int) -> dict:
 
 
 def git_names(cwd: Path, staged: bool, base: str) -> list[str]:
+    """Return changed and untracked paths relevant to the verification mode."""
     if staged:
         cmd = ['git', 'diff', '--cached', '--name-only']
     elif base:
@@ -31,28 +52,47 @@ def git_names(cwd: Path, staged: bool, base: str) -> list[str]:
         cmd = ['git', 'diff', '--name-only', 'HEAD']
     p = subprocess.run(cmd, cwd=str(cwd), text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if p.returncode:
+    if p.returncode and (staged or base):
         return []
-    return [x for x in p.stdout.splitlines() if x.strip()]
+    names = [] if p.returncode else [x for x in p.stdout.splitlines() if x.strip()]
+    if staged or base:
+        return names
+    extra = subprocess.run(['git', 'ls-files', '--others', '--exclude-standard'],
+                           cwd=str(cwd), text=True, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+    if extra.returncode == 0:
+        names.extend(x for x in extra.stdout.splitlines() if x.strip())
+    names.extend(internal_untracked(cwd))
+    return sorted(dict.fromkeys(names))
 
 
 def useful(path: str) -> bool:
+    """Return whether a changed path should participate in verification."""
     return not any(part in SKIP for part in Path(path).parts)
 
 
 def changed_files(args) -> list[str]:
+    """Return verification candidate files from git state and arguments."""
     cwd = Path(args.cwd).resolve() if args.cwd else lib.root_dir()
     return [x for x in git_names(cwd, args.staged, args.base) if useful(x)]
 
 
 def has_code(files: list[str]) -> bool:
+    """Return whether the file list contains source code changes."""
     return any(Path(x).suffix in CODE_EXT for x in files)
 
 
 def docs_only(files: list[str]) -> bool:
+    """Return whether all changed files are documentation files."""
     return bool(files) and all(Path(x).suffix in DOC_EXT for x in files)
 
+
+def touches_codex_internal(files: list[str]) -> bool:
+    """Return whether changes affect internal .codex executable code."""
+    return any(x.startswith(CODEX_INTERNAL) for x in files)
+
 def load_config(cwd: Path) -> dict:
+    """Load configured verification commands with stable defaults."""
     path = lib.find_codex() / 'state' / 'verify.json'
     default = {'commands': [], 'test_commands': [], 'saw_commands': [],
                'maw_commands': [], 'code_requires_test': True}
@@ -66,6 +106,7 @@ def load_config(cwd: Path) -> dict:
 
 
 def package_manager(cwd: Path) -> str:
+    """Select the package manager from lockfiles with npm fallback."""
     if (cwd / 'pnpm-lock.yaml').exists():
         return 'pnpm'
     if (cwd / 'yarn.lock').exists():
@@ -74,6 +115,7 @@ def package_manager(cwd: Path) -> str:
 
 
 def package_scripts(cwd: Path) -> dict:
+    """Return package.json scripts when the file is valid JSON."""
     path = cwd / 'package.json'
     if not path.exists():
         return {}
@@ -84,6 +126,7 @@ def package_scripts(cwd: Path) -> dict:
 
 
 def detected_commands(cwd: Path, files: list[str], mode: str) -> list[list[str]]:
+    """Infer targeted test commands from changed files and project shape."""
     cmds: list[list[str]] = []
     scripts = package_scripts(cwd)
     if scripts:
@@ -92,8 +135,12 @@ def detected_commands(cwd: Path, files: list[str], mode: str) -> list[list[str]]
         for name in names:
             if name in scripts:
                 cmds.append([pm, 'run', name])
-    if any(Path(x).suffix == '.py' for x in files) and (cwd / 'tests').exists():
-        cmds.append([sys.executable, '-m', 'pytest', '-q'])
+    if any(Path(x).suffix == '.py' for x in files):
+        if (cwd / 'tests').exists():
+            cmds.append([sys.executable, '-m', 'pytest', '-q', 'tests'])
+        if (cwd / '.codex' / 'tests').exists() and touches_codex_internal(files):
+            runner = lib.find_codex() / 'script' / 'codex_test_runner.py'
+            cmds.append([sys.executable, str(runner), '--for-ai'])
     if any(Path(x).suffix == '.java' for x in files):
         gradle_files = ['build.gradle', 'build.gradle.kts',
                         'settings.gradle', 'settings.gradle.kts']
@@ -109,6 +156,7 @@ def detected_commands(cwd: Path, files: list[str], mode: str) -> list[list[str]]
 
 
 def configured_commands(cwd: Path, mode: str) -> list[list[str]]:
+    """Return configured verification commands for the selected mode."""
     out = []
     conf = load_config(cwd)
     key = 'maw_commands' if mode == 'maw' else 'saw_commands'
@@ -122,16 +170,20 @@ def configured_commands(cwd: Path, mode: str) -> list[list[str]]:
 
 
 def call_script(name: str, extra: list[str], cwd: Path, timeout: int) -> dict:
+    """Run a bundled Codex script as a verification check."""
     path = lib.find_codex() / 'script' / name
     return run([sys.executable, str(path), *extra], cwd, timeout)
 
 
 def analyze(args) -> dict:
+    """Build and execute the complete verification plan."""
     cwd = Path(args.cwd).resolve() if args.cwd else lib.root_dir()
     files = changed_files(args)
     data = {'files': files, 'docs_only': docs_only(files),
             'code_changed': has_code(files), 'checks': []}
     qargs = ['gate', '--cwd', str(cwd)] + (['--staged'] if args.staged else [])
+    if touches_codex_internal(files):
+        qargs.extend(['--include-codex', '--max-lines', '500'])
     sargs = ['gate', '--cwd', str(cwd)] + (['--staged'] if args.staged else [])
     bargs = ['gate', '--cwd', str(cwd), '--mode', args.mode] + (['--staged'] if args.staged else [])
     data['checks'].append({'name': 'budget', **call_script('codex_budget.py', bargs, cwd, args.timeout)})
@@ -158,10 +210,12 @@ def analyze(args) -> dict:
 
 
 def verify(args) -> dict:
+    """Expose analyze for tests and callers that need verification data."""
     return analyze(args)
 
 
 def main() -> int:
+    """Parse CLI arguments and return the verification gate status."""
     p = argparse.ArgumentParser(); sub = p.add_subparsers(dest='cmd', required=True)
     for name in ['analyze', 'gate']:
         s = sub.add_parser(name); s.add_argument('--cwd', default='')

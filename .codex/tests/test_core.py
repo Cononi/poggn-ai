@@ -5,18 +5,14 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "script"))
 import lib
 from codex_state import bump
 
-
 def test_bump_patch():
     assert bump("1.2.3", "patch") == "1.2.4"
-
 
 def test_bump_minor():
     assert bump("1.2.3", "minor") == "1.3.0"
 
-
 def test_slug():
     assert lib.safe_slug("Release Shop API") == "release-shop-api"
-
 
 def test_add_commit_short_value():
     item = {"commits": []}
@@ -25,24 +21,20 @@ def test_add_commit_short_value():
     assert item["commit"] == "abcdef123456"
     assert item["commits"] == ["abcdef1234567890"]
 
-
 def test_refactor_repeat_score():
     import codex_refactor
     lines = ["value = call_service(item)" for _ in range(4)]
     assert codex_refactor.repeat_score(lines) == 2
-
 
 def test_skills_filter_by_agent():
     import codex_skills
     data = codex_skills.recommend("spring boot jpa swagger", "security")
     assert data == [] or data == ["security-gate", "verify-gate"]
 
-
 def test_task_done_needs_commit():
     import codex_trace_view
     task = {"status": "done", "commits": []}
     assert not codex_trace_view.task_done(task, [], [])
-
 
 def test_quality_rejects_jsx_extension(tmp_path):
     import codex_quality
@@ -58,6 +50,51 @@ def test_quality_rejects_jsx_extension(tmp_path):
     kinds = {x["kind"] for x in issues}
     assert "frontend-tsx-required" in kinds
 
+def test_quality_include_codex_scans_internal_files(tmp_path):
+    import codex_quality
+    rel = ".codex/script/internal.py"
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_text('def internal_func():\n    """Return marker."""\n    return 1\n')
+
+    class Args:
+        cwd = str(tmp_path)
+        all = True
+        staged = False
+        base = ""
+        max_lines = 200
+        front_lines = 160
+        page_lines = 120
+        repeat_limit = 6
+        state_limit = 6
+        style_limit = 8
+        include_codex = False
+
+    assert codex_quality.analyze(Args())["files"] == 0
+    Args.include_codex = True
+    assert codex_quality.analyze(Args())["files"] == 1
+
+def test_quality_doc_comment_detects_public_contracts():
+    import codex_quality
+    py_issues = codex_quality.doc_comment_checks(
+        "sample.py", "def public_func():\n    return 1\n"
+    )
+    ts_issues = codex_quality.doc_comment_checks(
+        "sample.ts", "export function foo() { return 1 }\n"
+    )
+    assert "doc-comment" in {x["kind"] for x in py_issues}
+    assert "doc-comment" in {x["kind"] for x in ts_issues}
+
+def test_verify_detects_codex_tests_for_internal_python_changes(tmp_path):
+    import codex_verify
+    (tmp_path / ".codex" / "tests").mkdir(parents=True)
+    cmds = codex_verify.detected_commands(
+        tmp_path, [".codex/script/codex_quality.py"], "saw"
+    )
+    assert any(cmd[-2:] == ["codex_test_runner.py", "--for-ai"] or
+               cmd[-1:] == ["--for-ai"] and "codex_test_runner.py" in cmd[-2]
+               for cmd in cmds)
+
 
 def test_saw_lite_single_task_plan():
     import codex_saw
@@ -67,13 +104,11 @@ def test_saw_lite_single_task_plan():
     assert data["task_policy"] == "one task, one commit, mandatory verify gate"
     assert "targeted test" in data["verify_policy"]
 
-
 def test_saw_frontend_primary_agent():
     import codex_saw
     data = codex_saw.plan("react tsx button variant fix")
     assert data["agent"] == "frontend"
     assert "frontend-component-architecture" in data["skills"]
-
 
 def test_verify_docs_only_policy(tmp_path):
     import subprocess
@@ -93,7 +128,6 @@ def test_verify_docs_only_policy(tmp_path):
     data = codex_verify.verify(Args())
     assert data["test_policy"] == "skipped_docs_or_no_code"
 
-
 def test_budget_text_recommends_maw():
     import codex_budget
     class Args:
@@ -105,7 +139,6 @@ def test_budget_text_recommends_maw():
         for_ai = True
     data = codex_budget.analyze(Args())
     assert data["decision"] in {"maw_split_waves", "maw_single_wave"}
-
 
 def test_context_pack_empty():
     import codex_context
@@ -121,7 +154,6 @@ def test_context_pack_empty():
     data = codex_context.pack(Args())
     assert "cwd" in data
 
-
 def test_risk_recommends_maw_for_payment_auth():
     import codex_risk
     Args = type('Args', (), {'text': 'payment auth api 수정', 'cwd': '',
@@ -129,7 +161,6 @@ def test_risk_recommends_maw_for_payment_auth():
     data = codex_risk.classify(Args())
     assert data['risk'] == 'high'
     assert data['workflow'] == 'maw'
-
 
 def test_budget_suggest_recommends_maw_for_order_payment():
     import codex_budget
@@ -139,7 +170,6 @@ def test_budget_suggest_recommends_maw_for_order_payment():
                              'base': '', 'mode': 'auto', 'for_ai': True})
     data = codex_budget.analyze(Full())
     assert data['decision'] in {'maw_split_waves', 'maw_single_wave'}
-
 
 def test_budget_suggest_splits_community_stack():
     import codex_budget
@@ -153,7 +183,6 @@ def test_budget_suggest_splits_community_stack():
     assert 'post' in data['features']
     assert 'comment' in data['features']
     assert data['decision'] == 'maw_split_waves'
-
 
 def test_feature_infer_uses_presets_and_generic_slices():
     import codex_feature_infer
@@ -171,14 +200,12 @@ def test_feature_infer_uses_presets_and_generic_slices():
     assert 'chat' in trade
     assert 'review' in trade
 
-
 def test_context_pack_without_workflow_fails_cleanly():
     import subprocess
     proc = subprocess.run([sys.executable, '.codex/script/codex_context.py', 'pack'],
                           cwd=str(Path(__file__).parents[2]), text=True,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert proc.returncode in {0, 1, 2}
-
 
 def test_maw_uses_all_selected_implementation_agents():
     import codex_work_items
@@ -191,7 +218,6 @@ def test_maw_uses_all_selected_implementation_agents():
     assert ("backend", "payment") in impl
     assert ("frontend", "order") in impl
     assert ("integration", "payment") in impl
-
 
 def test_agent_roles_classifies_implementation_groups():
     import codex_agent_roles
@@ -215,7 +241,6 @@ def test_work_items_general_implementation_agents():
     assert "impl:payment:frontend" in keys
     assert "impl:order:integration" in keys
 
-
 def test_work_items_include_spark_lane_contract():
     import codex_work_items
     rows = codex_work_items.plan(
@@ -238,7 +263,6 @@ def test_work_items_include_spark_lane_contract():
     assert backend["verification"]
     assert backend["done_contract"]
 
-
 def test_frontend_lane_has_component_contract_for_react_and_vue():
     import codex_work_items
     react_rows = codex_work_items.plan(
@@ -260,6 +284,47 @@ def test_frontend_lane_has_component_contract_for_react_and_vue():
     assert any("composable" in x for x in vue_frontend["frontend_contract"])
     assert "src/**/*.vue" in vue_frontend["owner_files"]
 
+def test_maw_seed_contract_captures_stack_questions_and_exclusions():
+    import codex_work_items
+    rows = codex_work_items.plan(  # stack gate web/API seed
+        "spring boot와 react로 커뮤니티 만들어줘",
+        agents="backend,frontend,test_writer,qa,security",
+        guards="static",
+    )
+    contract = next(x for x in rows if x["key"] == "contract")
+    backend = next(x for x in rows if x["key"] == "impl:post:backend")
+    frontend = next(x for x in rows if x["key"] == "impl:post:frontend")
+
+    assert {"Spring Boot", "React"} <= set(contract["framework_gate"]["explicit"])
+    assert any("web app" in x for x in contract["product_type_gate"])
+    assert any("UI library" in x for x in contract["framework_gate"]["confirm"])
+    assert any("defer WebFlux" in x for x in contract["excluded_stack"])
+    assert any("product/platform/framework" in x for x in contract["auto_decisions"])
+    assert any("JPA" in x for x in backend["backend_contract"])
+    assert any("framework=react" in x for x in frontend["frontend_contract"])
+def test_stack_gate_respects_explicit_frontend_libraries():
+    import codex_work_items
+    rows = codex_work_items.plan(  # explicit frontend libraries
+        "spring boot jpa h2 react mui axios zustand tanstack query 커뮤니티",
+        agents="backend,frontend",
+    )
+    contract = next(x for x in rows if x["key"] == "contract")
+    explicit = set(contract["framework_gate"]["explicit"])
+    confirms = " ".join(contract["framework_gate"]["confirm"])
+    assert {"JPA", "H2", "MUI", "Axios", "Zustand", "TanStack Query"} <= explicit
+    assert "UI library" not in confirms
+    assert "HTTP client" not in confirms
+    assert "client state" not in confirms
+    assert "server state" not in confirms
+
+
+def test_stack_gate_handles_game_without_web_assumption():
+    import codex_work_items
+    rows = codex_work_items.plan("2D 멀티플레이어 카드 게임 만들어줘", agents="qa")
+    contract = next(x for x in rows if x["key"] == "contract")
+    assert "game" in contract["product_type_gate"]
+    assert any("game engine" in x for x in contract["framework_gate"]["confirm"])
+    assert any("gameplay" in x for x in contract["capability_gate"])
 
 def test_work_items_split_unknown_site_by_generic_features():
     import codex_work_items
@@ -272,7 +337,6 @@ def test_work_items_split_unknown_site_by_generic_features():
     assert "impl:patient:backend" in keys
     assert "impl:doctor:frontend" in keys
     assert "impl:reservation:backend" in keys
-
 
 def test_event_policy_triggers_only_producer_stage():
     import codex_event_bus
@@ -288,14 +352,12 @@ def test_verify_detects_gradle_build_file_for_java(tmp_path):
     cmds = codex_verify.detected_commands(tmp_path, ['src/main/java/App.java'], 'saw')
     assert ['gradle', 'test', '--no-daemon'] in cmds
 
-
 def test_verify_prefers_gradle_wrapper_over_maven(tmp_path):
     import codex_verify
     (tmp_path / 'gradlew').write_text('#!/bin/sh')
     (tmp_path / 'pom.xml').write_text('<project/>')
     cmds = codex_verify.detected_commands(tmp_path, ['src/main/java/App.java'], 'saw')
     assert cmds == [['./gradlew', 'test', '--no-daemon']]
-
 
 
 def test_task_commit_message_parts_include_body_and_footer():
@@ -315,30 +377,25 @@ def test_task_commit_message_parts_include_body_and_footer():
     assert 'Codex-Lane: L007' in footer
     assert 'Codex-Verification: codex_verify gate --staged --mode maw' in footer
 
-
 def test_task_commit_message_keeps_existing_conventional_subject():
     import codex_task_git
     task = {'id': 'T001', 'title': 'fallback', 'stage': 'implement'}
     assert codex_task_git.commit_subject('fix: correct dto mapping', task) == 'fix: correct dto mapping'
-
 
 def test_hook_prompt_output_does_not_inject_general_context():
     import hook_context
     out = hook_context.prompt_output('프로젝트 기능 수정해줘', 'ko')
     assert out == {'continue': True}
 
-
 def test_hook_prompt_output_does_not_inject_maw_context():
     import hook_context
     out = hook_context.prompt_output('$maw 주문 기능 만들어줘', 'ko')
     assert out == {'continue': True}
 
-
 def test_hook_session_start_has_no_system_message():
     import hook_context
     out = hook_context.output('session_start')
     assert out == {'continue': True, 'suppressOutput': True}
-
 
 def test_hook_protected_write_still_denies_codex_edits_in_project_mode():
     import hook_context
@@ -352,7 +409,6 @@ def test_hook_protected_write_still_denies_codex_edits_in_project_mode():
         assert hook_context.protected_write(payload)
     finally:
         hook_context.read_mode = original
-
 
 def test_trace_view_renders_tasks_markdown_in_current_language(tmp_path):
     import json
@@ -413,7 +469,6 @@ def test_trace_view_renders_tasks_markdown_in_current_language(tmp_path):
         assert 'acceptance:' not in rendered
     finally:
         codex_trace_view.lib.language = original
-
 
 def test_pipeline_instruction_uses_current_language(tmp_path):
     import codex_pipeline

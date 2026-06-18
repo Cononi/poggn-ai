@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse, json, re
-import lib, codex_budget, codex_feature_infer, codex_lanes, codex_skills, codex_state, codex_agent_pool
+import lib, codex_budget, codex_design_gate, codex_feature_infer, codex_lanes, codex_skills, codex_state, codex_agent_pool
 FEATURE_LABELS = {
     "product": "상품", "order": "주문", "payment": "결제", "member": "회원",
     "cart": "장바구니", "coupon": "쿠폰", "post": "게시글", "comment": "댓글",
@@ -110,9 +110,12 @@ def contract_scope(agent: str) -> dict:
 
 
 def frontend_framework(text: str) -> str:
-    q = words(text)
-    has_react = bool(q & words("react jsx tsx next"))
-    has_vue = bool(q & words("vue nuxt sfc"))
+    q = words(text); lower = text.lower()
+    has_next = "next.js" in lower or "nextjs" in lower or "next" in q
+    has_react = bool(q & words("react jsx tsx")) or any(x in lower for x in ["react", "jsx", "tsx"])
+    has_vue = bool(q & words("vue nuxt sfc")) or any(x in lower for x in ["vue", "nuxt"])
+    if has_next:
+        return "nextjs"
     if has_react and has_vue:
         return "react/vue"
     if has_vue:
@@ -122,17 +125,24 @@ def frontend_framework(text: str) -> str:
 
 def frontend_contract(row: dict, request_text: str) -> dict:
     framework = frontend_framework(request_text)
-    state_unit = "hook" if framework == "react" else ("composable" if framework == "vue" else "hook/composable")
+    state_unit = "composable" if framework == "vue" else "hook"
     feature = row.get("feature", "feature")
+    contract = [
+        f"framework={framework}; use typed client, {state_unit}, feature components, page composition",
+        "page only routes/data-boundary/composition; no API/business/validation logic",
+        "component has one semantic UI responsibility; split >160 lines; >250 lines is blocker",
+        "state/API/validation/pending/dirty/error live in typed client or hook/composable",
+        "loading/error/empty/disabled, a11y labels/focus/keyboard, responsive overflow required",
+        f"feature={feature}; shared UI only after 3 repeated uses with stable props",
+    ]
+    if framework == "nextjs":
+        contract.extend([
+            "Next page.tsx/layout.tsx stay server components unless interaction requires a leaf client component",
+            "cache/revalidate/dynamic policy is explicit for server data and mutations",
+        ])
     return {
-        "frontend_contract": [
-            f"framework={framework}; use typed client, {state_unit}, feature components, page composition",
-            "page only routes/data-boundary/composition; no API/business/validation logic",
-            "component has one semantic UI responsibility; split >160 lines; >250 lines is blocker",
-            "state/API/validation/pending/dirty/error live in typed client or hook/composable",
-            "loading/error/empty/disabled, a11y labels/focus/keyboard, responsive overflow required",
-            f"feature={feature}; shared UI only after 3 repeated uses with stable props",
-        ]
+        "frontend_contract": contract,
+        "frontend_layout_contract": stack_contract(request_text).get("frontend_layout_contract", []),
     }
 
 
@@ -140,6 +150,14 @@ def budget_note() -> str:
     maw = codex_budget.config()["maw"]
     return (f"Spark lane budget: <= {maw.get('max_files_per_lane')} files, "
             f"<= {maw.get('max_lines_per_lane')} changed lines; split when larger.")
+
+
+def stack_contract(request_text: str) -> dict:
+    return codex_design_gate.stack_contract(request_text)
+
+
+def backend_contract(request_text: str) -> dict:
+    return codex_design_gate.backend_contract(request_text)
 
 
 DEFAULT_ROLES = {
@@ -206,6 +224,12 @@ def enrich(row: dict, request_text: str = "") -> dict:
     item.setdefault("budget_note", budget_note())
     for key, value in contract_scope(item.get("agent", "")).items():
         item.setdefault(key, value)
+    if item.get("agent") == "architecture":
+        for key, value in stack_contract(request_text).items():
+            item.setdefault(key, value)
+    if item.get("agent") == "backend":
+        for key, value in backend_contract(request_text).items():
+            item.setdefault(key, value)
     if item.get("agent") == "frontend":
         for key, value in frontend_contract(item, request_text).items():
             item.setdefault(key, value)
@@ -344,7 +368,10 @@ def add_task(cur: dict, tasks: list[dict], row: dict, skills: list[str]) -> str:
             "feature": row["feature"], "status": "todo", "commit": "", "commits": []}
     for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
                 "budget_note", "owner_files", "forbidden_files", "verification",
-                "done_contract", "frontend_contract"]:
+                "done_contract", "frontend_contract", "backend_contract",
+                "stack_contract", "excluded_stack", "clarification_order", "auto_decisions",
+                "product_type_gate", "platform_gate", "framework_gate", "capability_gate",
+                "package_layout_contract", "frontend_layout_contract"]:
         if row.get(key):
             item[key] = row[key]
     tasks.append(item)
@@ -361,7 +388,10 @@ def add_lane(cur: dict, row: dict, task: str, skills: list[str], deps: list[str]
             "deps": deps, "upstream_lane_id": deps[-1] if deps else "", "key": row["key"]}
     for key in ["purpose", "acceptance", "non_goals", "design_source", "request_summary",
                 "budget_note", "owner_files", "forbidden_files", "verification",
-                "done_contract", "frontend_contract"]:
+                "done_contract", "frontend_contract", "backend_contract",
+                "stack_contract", "excluded_stack", "clarification_order", "auto_decisions",
+                "product_type_gate", "platform_gate", "framework_gate", "capability_gate",
+                "package_layout_contract", "frontend_layout_contract"]:
         if row.get(key):
             item[key] = row[key]
     item["worker_name"] = codex_agent_pool.label(item); item["reuse_key"] = codex_agent_pool.reuse_key(item)

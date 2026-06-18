@@ -6,8 +6,9 @@ import lib
 
 SRC = {".java", ".kt", ".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs"}
 FRONT = {".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte"}
-SKIP = {".git", ".codex", ".codex-state", ".worktrees", "node_modules",
+SKIP = {".git", ".codex-state", ".worktrees", "node_modules",
         "dist", "build", ".next", ".venv", "venv", "__pycache__"}
+CODEX_INTERNAL = {".codex/script", ".codex/tests", ".codex/hooks"}
 FRONT_HINT = {"app", "pages", "components", "features", "frontend", "ui", "src"}
 SECRET_RX = [
     ("private-key", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
@@ -17,37 +18,78 @@ SECRET_RX = [
 
 
 def run(cmd: list[str], cwd: Path) -> str:
+    """Run a git helper command and return stdout on success."""
     p = subprocess.run(cmd, cwd=str(cwd), text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return p.stdout.strip() if p.returncode == 0 else ""
 
 
+def internal_untracked(cwd: Path) -> list[str]:
+    """Return untracked internal .codex files for default quality checks."""
+    rows = []
+    for prefix in CODEX_INTERNAL:
+        base = cwd / prefix
+        if not base.exists():
+            continue
+        for path in base.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(cwd).as_posix()
+                tracked = subprocess.run(["git", "ls-files", "--error-unmatch", rel],
+                                         cwd=str(cwd), stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                if tracked.returncode:
+                    rows.append(rel)
+    return rows
+
+
 def changed(cwd: Path, staged: bool, base: str) -> list[str]:
+    """Return changed and untracked paths relevant to quality analysis."""
     if staged:
         out = run(["git", "diff", "--cached", "--name-only"], cwd)
     elif base:
         out = run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd)
     else:
         out = run(["git", "diff", "--name-only", "HEAD"], cwd)
-    return [x for x in out.splitlines() if x.strip()]
+    names = [x for x in out.splitlines() if x.strip()]
+    if staged or base:
+        return names
+    extra = run(["git", "ls-files", "--others", "--exclude-standard"], cwd)
+    names.extend(x for x in extra.splitlines() if x.strip())
+    names.extend(internal_untracked(cwd))
+    return sorted(dict.fromkeys(names))
 
 
-def all_files(cwd: Path) -> list[str]:
+def skipped(path: Path, include_codex: bool) -> bool:
+    """Return whether a path is outside the active quality scan scope."""
+    parts = path.parts
+    if ".codex" in parts and not include_codex:
+        return True
+    if ".codex" in parts and include_codex:
+        rel = path.as_posix()
+        return not any(rel.startswith(prefix + "/") for prefix in CODEX_INTERNAL)
+    return any(part in SKIP for part in parts)
+
+
+def all_files(cwd: Path, include_codex: bool = False) -> list[str]:
+    """Return all source files visible to the selected quality scope."""
     rows = []
     for p in cwd.rglob("*"):
-        if any(part in SKIP for part in p.parts):
+        rel_path = p.relative_to(cwd)
+        if skipped(rel_path, include_codex):
             continue
         if p.is_file() and p.suffix in SRC | FRONT:
-            rows.append(str(p.relative_to(cwd)))
+            rows.append(str(rel_path))
     return rows
 
 
-def wanted(path: str) -> bool:
+def wanted(path: str, include_codex: bool = False) -> bool:
+    """Return whether a path has a source suffix and is not skipped."""
     p = Path(path)
-    return p.suffix in SRC | FRONT and not any(part in SKIP for part in p.parts)
+    return p.suffix in SRC | FRONT and not skipped(p, include_codex)
 
 
 def read(cwd: Path, rel: str) -> str:
+    """Read a file defensively for quality analysis."""
     try:
         return (cwd / rel).read_text(encoding="utf-8", errors="ignore")
     except FileNotFoundError:
@@ -55,10 +97,12 @@ def read(cwd: Path, rel: str) -> str:
 
 
 def issue(kind: str, severity: str, path: str, msg: str) -> dict:
+    """Build a normalized quality issue record."""
     return {"kind": kind, "severity": severity, "path": path, "message": msg}
 
 
 def repeated(lines: list[str]) -> int:
+    """Return a simple repeated-line score for duplication detection."""
     seen: dict[str, int] = {}
     for line in lines:
         s = re.sub(r"\s+", " ", line.strip())
@@ -69,6 +113,7 @@ def repeated(lines: list[str]) -> int:
 
 
 def is_frontend(rel: str, text: str) -> bool:
+    """Return whether a file should receive frontend-specific checks."""
     p = Path(rel)
     parts = {x.lower() for x in p.parts}
     if p.suffix in {".jsx", ".tsx", ".vue", ".svelte"}:
@@ -79,10 +124,12 @@ def is_frontend(rel: str, text: str) -> bool:
 
 
 def has_jsx(text: str) -> bool:
+    """Return whether text appears to contain JSX markup."""
     return bool(re.search(r"<([A-Z][A-Za-z0-9]*|div|span|button|section)\b", text))
 
 
 def frontend_checks(rel: str, text: str, args) -> list[dict]:
+    """Return frontend quality issues for typed UI boundaries."""
     p = Path(rel); lines = text.splitlines(); out = []
     if not is_frontend(rel, text):
         return out
@@ -118,6 +165,7 @@ def frontend_checks(rel: str, text: str, args) -> list[dict]:
 
 
 def previous_doc(lines: list[str], idx: int) -> bool:
+    """Return whether the previous non-empty line is a doc comment."""
     j = idx - 1
     while j >= 0 and not lines[j].strip():
         j -= 1
@@ -128,6 +176,7 @@ def previous_doc(lines: list[str], idx: int) -> bool:
 
 
 def python_docstring(lines: list[str], idx: int) -> bool:
+    """Return whether a Python function starts with a docstring."""
     base = len(lines[idx]) - len(lines[idx].lstrip())
     triple_single = "'" * 3
     for line in lines[idx + 1:idx + 5]:
@@ -141,6 +190,7 @@ def python_docstring(lines: list[str], idx: int) -> bool:
 
 
 def doc_comment_checks(rel: str, text: str) -> list[dict]:
+    """Return public contract documentation warnings."""
     p = Path(rel); lines = text.splitlines(); out = []
     if p.suffix not in SRC:
         return out
@@ -148,13 +198,13 @@ def doc_comment_checks(rel: str, text: str) -> list[dict]:
         stripped = line.strip()
         needs_doc = False
         if p.suffix in {".java", ".kt"}:
-            needs_doc = bool(re.match(r"public\s+(class|interface|enum|record)", stripped))
+            needs_doc = bool(re.match(r"public\s+(class|interface|enum|record)\b", stripped))
             needs_doc = needs_doc or bool(re.match(r"public\s+.*\w+\s*\([^)]*\)\s*", stripped))
         elif p.suffix in {".ts", ".tsx", ".js", ".jsx"}:
             needs_doc = bool(re.match(r"export\s+(default\s+)?(async\s+)?"
-                                      r"(function|class|interface|type|const)", stripped))
+                                      r"(function|class|interface|type|const)\b", stripped))
         elif p.suffix == ".py":
-            m = re.match(r"(class|def)\s+([A-Za-z][A-Za-z0-9_]*)", stripped)
+            m = re.match(r"(class|def)\s+([A-Za-z][A-Za-z0-9_]*)\b", stripped)
             needs_doc = bool(m and not m.group(2).startswith("_"))
         if not needs_doc:
             continue
@@ -166,6 +216,7 @@ def doc_comment_checks(rel: str, text: str) -> list[dict]:
 
 
 def analyze_file(cwd: Path, rel: str, args) -> list[dict]:
+    """Return all quality issues for one file."""
     text = read(cwd, rel)
     if not text:
         return []
@@ -186,9 +237,10 @@ def analyze_file(cwd: Path, rel: str, args) -> list[dict]:
 
 
 def analyze(args) -> dict:
+    """Run quality analysis for the requested file scope."""
     cwd = Path(args.cwd).resolve() if args.cwd else lib.root_dir()
-    files = all_files(cwd) if args.all else changed(cwd, args.staged, args.base)
-    files = sorted({x for x in files if wanted(x)})
+    files = all_files(cwd, args.include_codex) if args.all else changed(cwd, args.staged, args.base)
+    files = sorted({x for x in files if wanted(x, args.include_codex)})
     issues = []
     for rel in files:
         issues.extend(analyze_file(cwd, rel, args))
@@ -199,10 +251,12 @@ def analyze(args) -> dict:
 
 
 def main() -> int:
+    """Parse CLI arguments and return quality gate status."""
     p = argparse.ArgumentParser(); sub = p.add_subparsers(dest="cmd", required=True)
     for name in ["analyze", "gate", "frontend"]:
         s = sub.add_parser(name); s.add_argument("--cwd", default="")
         s.add_argument("--staged", action="store_true"); s.add_argument("--all", action="store_true")
+        s.add_argument("--include-codex", action="store_true")
         s.add_argument("--base", default=""); s.add_argument("--strict", action="store_true")
         s.add_argument("--for-ai", action="store_true")
         s.add_argument("--max-lines", type=int, default=200)

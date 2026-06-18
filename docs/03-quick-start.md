@@ -47,3 +47,17 @@ $codex-task trace --for-ai
 $codex-saw suggest --text "dto 필드 매핑 오류 수정"
 ```
 
+
+
+## 초기 설계 gate
+
+큰 요청은 구현 전에 product type, platform/runtime, framework/engine,
+capability, stack decision을 먼저 분류합니다.
+
+```text
+$codex-work-items suggest --text "spring boot react 커뮤니티" --agents backend,frontend
+```
+
+Spring Boot가 명시되면 domain-first Java 패키지 구조 계약이 붙습니다.
+React만 명시되면 Vite SPA와 Next.js/SSR 선택을 먼저 확인합니다.
+Next.js가 명시되면 `src/app` App Router와 server/client 경계를 계약으로 둡니다.

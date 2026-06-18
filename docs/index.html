@@ -170,6 +170,20 @@ $codex-task trace --for-ai
 $codex-saw suggest --text &quot;dto 필드 매핑 오류 수정&quot;
 ```
 
+
+
+## 초기 설계 gate
+
+큰 요청은 구현 전에 product type, platform/runtime, framework/engine,
+capability, stack decision을 먼저 분류합니다.
+
+```text
+$codex-work-items suggest --text &quot;spring boot react 커뮤니티&quot; --agents backend,frontend
+```
+
+spring boot가 명시되면 domain-first java 패키지 구조 계약이 붙습니다.
+react만 명시되면 vite spa와 next.js/ssr 선택을 먼저 확인합니다.
+next.js가 명시되면 `src/app` app router와 server/client 경계를 계약으로 둡니다.
 '>빠른 시작<small>03-quick-start.md</small></a>
 <a href='#README' data-title='codex wiki 문서' data-text='# codex wiki 문서
 
@@ -417,11 +431,16 @@ $codex-edit-mode off
 
 ```text
 $codex-agents check
-$codex-quality gate --all --for-ai
+$codex-quality gate --all --include-codex --max-lines 500 --for-ai
+$codex-verify gate --for-ai
 $codex-wiki build
 ```
 
 - extension-governance: agent와 skill 생성 gate입니다.
+
+
+문서를 추가하거나 수정하면 `docs/` 원본과 `.codex/templates/docs/ko,en`을
+같이 갱신합니다. 언어 전환은 template에서 `docs/`를 다시 렌더링합니다.
 '>커스텀 방법<small>customization/index.md</small></a>
 <a href='#customization-language' data-title='언어 전환' data-text='# 언어 전환
 
@@ -622,9 +641,11 @@ $codex-quality gate --for-ai
 '>리팩토링 지침<small>quality/refactor.md</small></a>
 <a href='#quality-security' data-title='보안 지침' data-text='# 보안 지침
 
-보안 검사는 마지막 단계에서 반드시 실행합니다.
+보안 검사는 마지막 단계에서만 보는 검사가 아닙니다.
+`$codex-verify gate`가 budget, quality, security, test를 함께 실행합니다.
 
 ```text
+$codex-verify gate --for-ai
 $codex-security gate
 $codex-quality gate --for-ai
 ```
@@ -632,14 +653,25 @@ $codex-quality gate --for-ai
 금지 사항입니다.
 
 - secret, token, password, private key를 코드에 쓰지 않습니다.
-- .env 내용을 읽거나 문서에 붙이지 않습니다.
+- `.env` 내용을 읽거나 문서에 붙이지 않습니다.
 - 인증과 권한 검사를 프론트에만 의존하지 않습니다.
 - 사용자 입력을 검증하지 않고 db나 shell에 넘기지 않습니다.
 - cors와 redirect 정책을 넓게 열지 않습니다.
 - 권한 변경, 결제, 배포 설정은 고위험 변경으로 취급합니다.
 
+## 신뢰 경계
+
+- `$codex-*` shortcut은 `.codex/script`의 allow-list script만 실행합니다.
+- `.codex` 수정은 `$codex-edit-mode on` 상태에서만 수행합니다.
+- `codex_test_runner.py`는 신뢰된 `.codex/tests/test_*.py` 전용입니다.
+- 외부에서 받은 테스트 파일, fixture, generated artifact는 먼저 검토합니다.
+- 언어 전환은 `docs/`를 template에서 다시 렌더링하므로 template도 갱신합니다.
+
+## 완료 기준
+
 보안 이슈가 발견되면 task를 완료하지 않습니다.
 security agent 또는 refactor agent가 별도 task로 수정해야 합니다.
+보안 검증 결과와 남은 위험은 완료 보고에 포함합니다.
 '>보안 지침<small>quality/security.md</small></a>
 <a href='#scripts-implementation' data-title='코드 구현 설명' data-text='# 코드 구현 설명
 
@@ -681,8 +713,10 @@ codex_lanes.py       maw 병렬 lane과 worktree 관리
 codex_pipeline.py    ready queue와 downstream agent pipeline 관리
 codex_waves.py       maw lane을 실행 wave로 분할
 codex_work_items.py  요구사항을 기능 task로 분해
+codex_design_gate.py 제품 유형, platform, framework, stack 계약 분류
 codex_saw.py         saw micro workflow 생성
 codex_verify.py      saw/task 완료 전 최소 검증
+codex_test_runner.py .codex 내부 테스트 전용 no-dependency runner
 codex_quality.py     코드 품질, 프론트 tsx, 중복 검사
 codex_security.py    secret, token, private key 검사
 codex_refactor.py    리팩토링 필요 여부 분석
@@ -738,6 +772,7 @@ $codex-verify gate --staged --for-ai
 검사 순서는 아래입니다.
 
 ```text
+budget gate
 quality gate
 security gate
 changed-code test command
@@ -745,7 +780,9 @@ changed-code test command
 
 문서만 변경되면 test는 생략됩니다.
 
-코드가 변경되면 test command가 필요합니다.
+코드가 변경되면 test command가 필요합니다. 기본 검증은 modified 파일과
+untracked 신규 파일을 함께 봅니다. `.codex` 내부 python 변경은 내부 테스트
+runner를 자동으로 실행합니다.
 
 명령은 `.codex/state/verify.json`에 넣을 수 있습니다.
 
@@ -758,6 +795,9 @@ changed-code test command
 명령이 없으면 package.json, pytest, gradle, maven을 일부 탐지합니다.
 
 그래도 없으면 gate는 실패합니다.
+
+`codex_test_runner.py`는 신뢰된 `.codex/tests/test_*.py` 전용입니다.
+외부에서 받은 임의 테스트 파일 실행 용도로 사용하지 않습니다.
 
 ## risk, context, budget
 
@@ -1423,12 +1463,14 @@ $codex-verify gate --staged --for-ai
 이 gate는 아래를 실행합니다.
 
 ```text
+staged budget gate
 staged quality gate
-changed-code targeted test
 staged security gate
+changed-code targeted test
 ```
 
 코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.
+기본 검증은 modified 파일과 untracked 신규 파일을 함께 봅니다.
 
 테스트 명령은 아래 파일에 설정합니다.
 
@@ -2033,6 +2075,20 @@ $codex-task trace --for-ai
 $codex-saw suggest --text &quot;dto 필드 매핑 오류 수정&quot;
 ```
 
+
+
+## 초기 설계 gate
+
+큰 요청은 구현 전에 product type, platform/runtime, framework/engine,
+capability, stack decision을 먼저 분류합니다.
+
+```text
+$codex-work-items suggest --text &quot;spring boot react 커뮤니티&quot; --agents backend,frontend
+```
+
+spring boot가 명시되면 domain-first java 패키지 구조 계약이 붙습니다.
+react만 명시되면 vite spa와 next.js/ssr 선택을 먼저 확인합니다.
+next.js가 명시되면 `src/app` app router와 server/client 경계를 계약으로 둡니다.
 '><div class='path'>03-quick-start.md</div><h1>빠른 시작</h1>
 
 <p>프로젝트 루트에 ZIP을 풉니다.</p>
@@ -2067,7 +2123,19 @@ $codex-task trace --for-ai</code></pre>
 <h2>SAW 최소 토큰 예</h2>
 
 <pre><code>$codex-saw suggest --text &quot;dto 필드 매핑 오류 수정&quot;</code></pre>
-</article>
+
+
+
+<h2>초기 설계 gate</h2>
+
+<p>큰 요청은 구현 전에 product type, platform/runtime, framework/engine,</p>
+<p>capability, stack decision을 먼저 분류합니다.</p>
+
+<pre><code>$codex-work-items suggest --text &quot;spring boot react 커뮤니티&quot; --agents backend,frontend</code></pre>
+
+<p>Spring Boot가 명시되면 domain-first Java 패키지 구조 계약이 붙습니다.</p>
+<p>React만 명시되면 Vite SPA와 Next.js/SSR 선택을 먼저 확인합니다.</p>
+<p>Next.js가 명시되면 <code>src/app</code> App Router와 server/client 경계를 계약으로 둡니다.</p></article>
 <article id='README' data-title='codex wiki 문서' data-text='# codex wiki 문서
 
 이 폴더는 템플릿의 상세 설명입니다.
@@ -2493,11 +2561,16 @@ $codex-edit-mode off
 
 ```text
 $codex-agents check
-$codex-quality gate --all --for-ai
+$codex-quality gate --all --include-codex --max-lines 500 --for-ai
+$codex-verify gate --for-ai
 $codex-wiki build
 ```
 
 - extension-governance: agent와 skill 생성 gate입니다.
+
+
+문서를 추가하거나 수정하면 `docs/` 원본과 `.codex/templates/docs/ko,en`을
+같이 갱신합니다. 언어 전환은 template에서 `docs/`를 다시 렌더링합니다.
 '><div class='path'>customization/index.md</div><h1>커스텀 방법</h1>
 
 <p>커스텀은 .codex 수정 모드에서만 수행합니다.</p>
@@ -2520,10 +2593,15 @@ $codex-wiki build
 <p>수정 후 검증합니다.</p>
 
 <pre><code>$codex-agents check
-$codex-quality gate --all --for-ai
+$codex-quality gate --all --include-codex --max-lines 500 --for-ai
+$codex-verify gate --for-ai
 $codex-wiki build</code></pre>
 
-<p class='li'>• extension-governance: agent와 skill 생성 gate입니다.</p></article>
+<p class='li'>• extension-governance: agent와 skill 생성 gate입니다.</p>
+
+
+<p>문서를 추가하거나 수정하면 <code>docs/</code> 원본과 <code>.codex/templates/docs/ko,en</code>을</p>
+<p>같이 갱신합니다. 언어 전환은 template에서 <code>docs/</code>를 다시 렌더링합니다.</p></article>
 <article id='customization-language' data-title='언어 전환' data-text='# 언어 전환
 
 언어는 단일 zip 안에서 전환합니다.
@@ -2898,9 +2976,11 @@ $codex-quality gate --for-ai</code></pre>
 <p>여러 기능을 건드리면 별도 refactor TASK를 만들어 연결합니다.</p></article>
 <article id='quality-security' data-title='보안 지침' data-text='# 보안 지침
 
-보안 검사는 마지막 단계에서 반드시 실행합니다.
+보안 검사는 마지막 단계에서만 보는 검사가 아닙니다.
+`$codex-verify gate`가 budget, quality, security, test를 함께 실행합니다.
 
 ```text
+$codex-verify gate --for-ai
 $codex-security gate
 $codex-quality gate --for-ai
 ```
@@ -2908,32 +2988,56 @@ $codex-quality gate --for-ai
 금지 사항입니다.
 
 - secret, token, password, private key를 코드에 쓰지 않습니다.
-- .env 내용을 읽거나 문서에 붙이지 않습니다.
+- `.env` 내용을 읽거나 문서에 붙이지 않습니다.
 - 인증과 권한 검사를 프론트에만 의존하지 않습니다.
 - 사용자 입력을 검증하지 않고 db나 shell에 넘기지 않습니다.
 - cors와 redirect 정책을 넓게 열지 않습니다.
 - 권한 변경, 결제, 배포 설정은 고위험 변경으로 취급합니다.
 
+## 신뢰 경계
+
+- `$codex-*` shortcut은 `.codex/script`의 allow-list script만 실행합니다.
+- `.codex` 수정은 `$codex-edit-mode on` 상태에서만 수행합니다.
+- `codex_test_runner.py`는 신뢰된 `.codex/tests/test_*.py` 전용입니다.
+- 외부에서 받은 테스트 파일, fixture, generated artifact는 먼저 검토합니다.
+- 언어 전환은 `docs/`를 template에서 다시 렌더링하므로 template도 갱신합니다.
+
+## 완료 기준
+
 보안 이슈가 발견되면 task를 완료하지 않습니다.
 security agent 또는 refactor agent가 별도 task로 수정해야 합니다.
+보안 검증 결과와 남은 위험은 완료 보고에 포함합니다.
 '><div class='path'>quality/security.md</div><h1>보안 지침</h1>
 
-<p>보안 검사는 마지막 단계에서 반드시 실행합니다.</p>
+<p>보안 검사는 마지막 단계에서만 보는 검사가 아닙니다.</p>
+<p><code>$codex-verify gate</code>가 budget, quality, security, test를 함께 실행합니다.</p>
 
-<pre><code>$codex-security gate
+<pre><code>$codex-verify gate --for-ai
+$codex-security gate
 $codex-quality gate --for-ai</code></pre>
 
 <p>금지 사항입니다.</p>
 
 <p class='li'>• secret, token, password, private key를 코드에 쓰지 않습니다.</p>
-<p class='li'>• .env 내용을 읽거나 문서에 붙이지 않습니다.</p>
+<p class='li'>• <code>.env</code> 내용을 읽거나 문서에 붙이지 않습니다.</p>
 <p class='li'>• 인증과 권한 검사를 프론트에만 의존하지 않습니다.</p>
 <p class='li'>• 사용자 입력을 검증하지 않고 DB나 shell에 넘기지 않습니다.</p>
 <p class='li'>• CORS와 redirect 정책을 넓게 열지 않습니다.</p>
 <p class='li'>• 권한 변경, 결제, 배포 설정은 고위험 변경으로 취급합니다.</p>
 
+<h2>신뢰 경계</h2>
+
+<p class='li'>• <code>$codex-*</code> shortcut은 <code>.codex/script</code>의 allow-list script만 실행합니다.</p>
+<p class='li'>• <code>.codex</code> 수정은 <code>$codex-edit-mode on</code> 상태에서만 수행합니다.</p>
+<p class='li'>• <code>codex_test_runner.py</code>는 신뢰된 <code>.codex/tests/test_*.py</code> 전용입니다.</p>
+<p class='li'>• 외부에서 받은 테스트 파일, fixture, generated artifact는 먼저 검토합니다.</p>
+<p class='li'>• 언어 전환은 <code>docs/</code>를 template에서 다시 렌더링하므로 template도 갱신합니다.</p>
+
+<h2>완료 기준</h2>
+
 <p>보안 이슈가 발견되면 TASK를 완료하지 않습니다.</p>
-<p>security agent 또는 refactor agent가 별도 TASK로 수정해야 합니다.</p></article>
+<p>security agent 또는 refactor agent가 별도 TASK로 수정해야 합니다.</p>
+<p>보안 검증 결과와 남은 위험은 완료 보고에 포함합니다.</p></article>
 <article id='scripts-implementation' data-title='코드 구현 설명' data-text='# 코드 구현 설명
 
 핵심 구현은 작은 python 스크립트로 나뉩니다.
@@ -2995,8 +3099,10 @@ codex_lanes.py       maw 병렬 lane과 worktree 관리
 codex_pipeline.py    ready queue와 downstream agent pipeline 관리
 codex_waves.py       maw lane을 실행 wave로 분할
 codex_work_items.py  요구사항을 기능 task로 분해
+codex_design_gate.py 제품 유형, platform, framework, stack 계약 분류
 codex_saw.py         saw micro workflow 생성
 codex_verify.py      saw/task 완료 전 최소 검증
+codex_test_runner.py .codex 내부 테스트 전용 no-dependency runner
 codex_quality.py     코드 품질, 프론트 tsx, 중복 검사
 codex_security.py    secret, token, private key 검사
 codex_refactor.py    리팩토링 필요 여부 분석
@@ -3052,6 +3158,7 @@ $codex-verify gate --staged --for-ai
 검사 순서는 아래입니다.
 
 ```text
+budget gate
 quality gate
 security gate
 changed-code test command
@@ -3059,7 +3166,9 @@ changed-code test command
 
 문서만 변경되면 test는 생략됩니다.
 
-코드가 변경되면 test command가 필요합니다.
+코드가 변경되면 test command가 필요합니다. 기본 검증은 modified 파일과
+untracked 신규 파일을 함께 봅니다. `.codex` 내부 python 변경은 내부 테스트
+runner를 자동으로 실행합니다.
 
 명령은 `.codex/state/verify.json`에 넣을 수 있습니다.
 
@@ -3072,6 +3181,9 @@ changed-code test command
 명령이 없으면 package.json, pytest, gradle, maven을 일부 탐지합니다.
 
 그래도 없으면 gate는 실패합니다.
+
+`codex_test_runner.py`는 신뢰된 `.codex/tests/test_*.py` 전용입니다.
+외부에서 받은 임의 테스트 파일 실행 용도로 사용하지 않습니다.
 
 ## risk, context, budget
 
@@ -3125,8 +3237,10 @@ codex_lanes.py       MAW 병렬 lane과 worktree 관리
 codex_pipeline.py    ready queue와 downstream agent pipeline 관리
 codex_waves.py       MAW lane을 실행 wave로 분할
 codex_work_items.py  요구사항을 기능 TASK로 분해
+codex_design_gate.py 제품 유형, platform, framework, stack 계약 분류
 codex_saw.py         SAW micro workflow 생성
 codex_verify.py      SAW/TASK 완료 전 최소 검증
+codex_test_runner.py .codex 내부 테스트 전용 no-dependency runner
 codex_quality.py     코드 품질, 프론트 TSX, 중복 검사
 codex_security.py    secret, token, private key 검사
 codex_refactor.py    리팩토링 필요 여부 분석
@@ -3172,13 +3286,16 @@ $codex-verify gate --staged --for-ai</code></pre>
 
 <p>검사 순서는 아래입니다.</p>
 
-<pre><code>quality gate
+<pre><code>budget gate
+quality gate
 security gate
 changed-code test command</code></pre>
 
 <p>문서만 변경되면 test는 생략됩니다.</p>
 
-<p>코드가 변경되면 test command가 필요합니다.</p>
+<p>코드가 변경되면 test command가 필요합니다. 기본 검증은 modified 파일과</p>
+<p>untracked 신규 파일을 함께 봅니다. <code>.codex</code> 내부 Python 변경은 내부 테스트</p>
+<p>runner를 자동으로 실행합니다.</p>
 
 <p>명령은 <code>.codex/state/verify.json</code>에 넣을 수 있습니다.</p>
 
@@ -3189,6 +3306,9 @@ changed-code test command</code></pre>
 <p>명령이 없으면 package.json, pytest, Gradle, Maven을 일부 탐지합니다.</p>
 
 <p>그래도 없으면 gate는 실패합니다.</p>
+
+<p><code>codex_test_runner.py</code>는 신뢰된 <code>.codex/tests/test_*.py</code> 전용입니다.</p>
+<p>외부에서 받은 임의 테스트 파일 실행 용도로 사용하지 않습니다.</p>
 
 <h2>risk, context, budget</h2>
 
@@ -4313,12 +4433,14 @@ $codex-verify gate --staged --for-ai
 이 gate는 아래를 실행합니다.
 
 ```text
+staged budget gate
 staged quality gate
-changed-code targeted test
 staged security gate
+changed-code targeted test
 ```
 
 코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.
+기본 검증은 modified 파일과 untracked 신규 파일을 함께 봅니다.
 
 테스트 명령은 아래 파일에 설정합니다.
 
@@ -4373,11 +4495,13 @@ $codex-refactor analyze --for-ai
 
 <p>이 gate는 아래를 실행합니다.</p>
 
-<pre><code>staged quality gate
-changed-code targeted test
-staged security gate</code></pre>
+<pre><code>staged budget gate
+staged quality gate
+staged security gate
+changed-code targeted test</code></pre>
 
 <p>코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.</p>
+<p>기본 검증은 modified 파일과 untracked 신규 파일을 함께 봅니다.</p>
 
 <p>테스트 명령은 아래 파일에 설정합니다.</p>
 
@@ -5016,7 +5140,7 @@ $codex-verify gate --staged --mode maw --for-ai</code></pre>
 <p>전체 diff는 사용자가 요청하거나 gate 실패 때만 봅니다.</p></article></main>
 </div>
 <script>
-const docs = [{"id": "00-overview", "title": "개요", "text": "# 개요\n\n이 템플릿은 Codex를 Git 기반 개발 자동화에 안전하게 쓰기 위한 구조입니다.\n목표는 AI가 코드를 작성하되, 상태 추적과 반복 작업은 스크립트가 맡는 것입니다.\n그래서 TASK, lane, commit, diff, rollback은 사람이 보기 좋은 문서와 별개로\nJSONL 원본 상태에 기록됩니다.\n\n핵심 원칙은 네 가지입니다.\n\n- agent는 역할입니다.\n- skill은 반복 가능한 절차입니다.\n- lane은 병렬 실행 단위입니다.\n- TASK는 commit과 연결되는 추적 단위입니다.\n\n예를 들어 쇼핑몰 REST API를 만든다면 backend agent 하나가 모든 것을 하지 않습니다.\nOrder REST API와 Payment REST API는 서로 다른 lane으로 나뉩니다.\n하지만 Spring Boot, JPA, Swagger는 agent가 아니라 backend agent가 쓰는 skill입니다.\n\n토큰 최적화는 긴 문서를 계속 읽지 않는 방식으로 달성합니다.\n$codex-state, $codex-task, $codex-quality 같은 shortcut은 hook에서 처리됩니다.\n따라서 상태 조회, 완료 처리, 품질 검사 결과는 모델로 보내지지 않습니다.\n"}, {"id": "01-architecture", "title": "구조 원리", "text": "# 구조 원리\n\n이 템플릿의 작업 단위는 계층으로 나뉩니다.\n\n```text\n사용자 요청\n  -> agent 추천\n  -> skill 자동 선정\n  -> TASK 생성\n  -> lane 생성\n  -> worktree 병렬 작업\n  -> commit 연결\n  -> quality/refactor/security gate\n```\n\nagent는 작업자의 역할입니다.\nbackend, frontend, database, integration처럼 책임을 나눕니다.\ndevops, docs, performance, test, qa, security, refactor도 분리합니다.\n\nskill은 agent가 작업할 때 읽는 전문 절차입니다.\nspring-boot, jpa, openapi-swagger, frontend-component-architecture처럼\n작업에 필요한 절차만 선택됩니다.\n\nlane은 실제 병렬 실행 단위입니다.\n같은 backend agent라도 order, payment, member는 별도 lane으로 실행됩니다.\n\nTASK는 추적 단위입니다.\nTASK는 하나 이상의 lane과 하나 이상의 commit을 가질 수 있습니다.\nTASK가 완료되려면 모든 lane이 done 또는 merged 상태여야 합니다.\n또한 commit이 연결되어야 합니다.\n\nTASKS.md는 사람이 보는 요약본입니다.\n원본 상태는 state.json, tasks.jsonl, lanes.jsonl, commits.jsonl, events.jsonl입니다.\n"}, {"id": "02-file-tree", "title": "파일 트리", "text": "# 파일 트리\n\n대표 구조입니다.\n\n```text\n.codex/\n  AGENTS.md\n  config.toml\n  hooks.json\n  agents/\n  hooks/\n  rules/\n  script/\n  skills/\n  state/\n  templates/\n  tests/\n.agents/\n  README.md\ndocs/\n  index.html\n  *.md\n.codex-state/\n  {날짜}/vN-{제목}/\n    TASKS.md\n    state.json\n    tasks.jsonl\n    lanes.jsonl\n    commits.jsonl\n    events.jsonl\n.worktrees/\n  {workflow}/l001/\n```\n\n.codex는 Codex 동작에 필요한 템플릿 원본입니다.\n.agents는 Codex skill 탐색 경로를 맞추기 위한 연결 지점입니다.\ndocs는 사용자를 위한 wiki 문서입니다.\n.codex-state는 실행 중인 workflow의 원본 상태입니다.\n.worktrees는 병렬 lane별 작업 공간입니다.\n\n일반 프로젝트 작업 중에는 .codex 수정을 피합니다.\n.codex를 수정해야 할 때만 $codex-edit-mode on을 사용합니다.\n"}, {"id": "03-quick-start", "title": "빠른 시작", "text": "# 빠른 시작\n\n프로젝트 루트에 ZIP을 풉니다.\n\n```bash\npython3 .codex/script/setup_links.py\n```\n\n언어를 확인합니다.\n\n```text\n$codex-language status\n```\n\n한국어로 전환합니다.\n\n```text\n$codex-language ko\n```\n\nGit 상태를 확인합니다.\n\n```text\n$codex-git doctor\n```\n\nMAW를 시작합니다.\n\n```text\n$maw spring boot 쇼핑몰 order payment rest api swagger jpa\n```\n\nCodex는 한 번에 하나의 질문만 해야 합니다.\n요구사항이 충분해지면 agent 추천을 보여줍니다.\n사용자는 추천 목록을 보고 필요한 agent를 선택하거나 추가합니다.\n\n상태 조회는 아래처럼 shortcut을 사용합니다.\n\n```text\n$codex-state summary --for-ai\n$codex-task trace --for-ai\n```\n\n## SAW 최소 토큰 예\n\n```text\n$codex-saw suggest --text \"dto 필드 매핑 오류 수정\"\n```\n\n"}, {"id": "README", "title": "Codex Wiki 문서", "text": "# Codex Wiki 문서\n\n이 폴더는 템플릿의 상세 설명입니다.\ndocs/index.html을 열면 검색 가능한 wiki로 모든 문서를 볼 수 있습니다.\n문서 원본은 Markdown이고, index.html은 codex_wiki.py가 생성합니다.\n\n## 추천 순서\n\n- 00-overview.md\n- 01-architecture.md\n- 02-file-tree.md\n- 03-quick-start.md\n- workflows/maw.md\n- quality/code-quality.md\n- scripts/index.md\n- customization/index.md\n"}, {"id": "agents-index", "title": "Agent 설명", "text": "# Agent 설명\n\nagent는 역할입니다. skill이나 기능명이 아닙니다.\n\n- architecture: 요구사항, API 계약, 도메인 경계 설계\n- backend: 서버 API, 서비스, 도메인 로직 구현\n- frontend: 화면, 컴포넌트, 클라이언트 상태 구현\n- database: 스키마, migration, index, 쿼리 검토\n- test: 단위 테스트, 통합 테스트, 회귀 테스트 생성\n- qa: 수용 기준, 사용자 흐름, 품질 gate 판단\n- security: 인증, 권한, secret, 취약점 검토\n- refactor: 동작 보존 리팩토링과 중복 제거\n- devops: CI/CD, Docker, GitHub Actions, GitLab CI\n- git: branch, commit, diff, rollback, PR/MR 준비\n- docs: README, wiki, API 문서, 릴리즈 노트\n- integration: 외부 API, 이벤트, 메시징 연동\n- performance: 느린 쿼리, 캐시, latency 검토\n\nagent 파일은 .codex/agents/*.toml입니다.\n모든 agent에는 name, description, model, model_reasoning_effort가 있어야 합니다.\n\n## /agent 와 $codex-agents\n\n/agent 는 실행 중인 subagent thread를 전환하거나 확인하는 용도입니다.\n아직 spawn된 subagent가 없으면 목록이 비어 보일 수 있습니다.\n\n프로젝트에 등록된 custom agent는 아래 명령으로 확인합니다.\n\n```text\n$codex-agents list\n$codex-agents check\n```\n\n## MAW에서 같은 agent 여러 개 실행\n\n같은 agent type을 여러 lane에 배정할 수 있습니다.\n\n```text\nL002 backend Order REST API\nL003 backend Payment REST API\n```\n\n이 경우 backend agent가 두 worker로 동시에 실행됩니다.\n\n각 worker는 다른 worktree와 branch를 사용합니다.\n\n## downstream agent\n\n구현이 끝난 lane은 downstream agent로 전달됩니다.\n\n```text\nimplement -> test -> qa -> refactor -> security\n```\n\nQA, refactor, security는 upstream lane의 commit과 diff를 우선 확인합니다.\n전체 repo를 다시 읽지 않습니다.\n"}, {"id": "agents-selection", "title": "Agent 선택 원리", "text": "# Agent 선택 원리\n\nCodex는 요청 텍스트를 보고 agent를 추천합니다.\n사용자는 추천 목록에서 고르거나 agent를 추가할 수 있습니다.\n\n예시입니다.\n\n```text\n$codex-agents recommend --text \"쇼핑몰 order payment rest api\"\n```\n\n추천 예시는 architecture, backend, database, test, qa, security입니다.\nfrontend가 필요한 화면 작업이면 frontend도 추가합니다.\n\nagent 수를 먼저 묻지 않는 이유는 사용자가 병렬 개수를 알기 어렵기 때문입니다.\n대신 목적에 맞는 agent를 고르면 work_items가 기능 lane을 만듭니다.\n\n새 agent는 기본적으로 자동 생성하지 않습니다.\n필요하면 $codex-edit-mode on 후 .codex/agents에 명시적으로 추가합니다.\n"}, {"id": "customization-add-agent-skill", "title": "Agent와 skill 추가", "text": "# Agent와 skill 추가\n\nagent는 .codex/agents/{name}.toml에 추가합니다.\n\n필수 필드입니다.\n\n- name\n- description\n- model\n- model_reasoning_effort\n- developer_instructions\n\nskill은 .codex/skills/{name}/SKILL.md에 추가합니다.\nSKILL.md에는 front matter의 name과 description이 있어야 합니다.\n\n추가 후 codex_skills.py 또는 codex_agents.py 추천 규칙을 갱신합니다.\n언어 전환에도 반영하려면 .codex/templates/i18n.json도 갱신합니다.\n\n검증 명령입니다.\n\n```text\n$codex-agents check\n$codex-skills list\n```\n\n## 구현 agent로 확장하기\n\n새 agent가 실제 산출물을 만드는 역할이면 구현 agent입니다.\n\n예를 들어 `mobile`, `crawler`, `ml` agent를 추가할 수 있습니다.\n\n```text\n$codex-extend check agent --name mobile --purpose \"mobile UI 구현\"\n```\n\n중복이 없으면 agent를 만든 뒤 role 설정에 추가합니다.\n\n```text\n.codex/state/agent_roles.json\n```\n\nfeature별로 여러 lane을 만들 agent는 여기에 넣습니다.\n\n```json\n\"feature_implementation_agents\": [\"backend\", \"frontend\", \"mobile\"]\n```\n\n프로젝트 단위로 한 번만 도는 agent는 여기에 넣습니다.\n\n```json\n\"single_implementation_agents\": [\"devops\", \"docs\"]\n```\n"}, {"id": "customization-extension-governance", "title": "확장 거버넌스", "text": "# 확장 거버넌스\n\nagent와 skill은 계속 확장할 수 있습니다.\n\n하지만 무작위 생성은 금지합니다.\n\n먼저 기존 agent와 skill이 처리할 수 있는지 검사합니다.\n\n```text\n$codex-extend scan --text \"payment webhook 검증\" --for-ai\n```\n\n또는 agent와 skill 후보를 명시해서 검사합니다.\n\n```text\n$codex-capabilities inspect --text \"요청\" --agents \"name\" --skills \"name\"\n```\n\n유사 항목이 있으면 새로 만들지 않고 기존 capability를 재사용합니다.\n\n중복이 없고 목적이 명확할 때만 생성합니다.\n\n```text\n$codex-edit-mode on\n$codex-extend create-agent --name webhook-reviewer \\\n  --purpose \"webhook 변경만 검토\" \\\n  --approve --reason \"중복 없음\"\n$codex-edit-mode off\n```\n\n새 skill은 하나의 반복 workflow만 담당해야 합니다.\n\n```text\n$codex-edit-mode on\n$codex-extend create-skill --name webhook-safety \\\n  --purpose \"webhook 검증 절차\" \\\n  --domain \"backend integration\" --approve\n$codex-edit-mode off\n```\n\n새 agent는 자기 사명만 수행합니다.\n\n구현 agent는 자기 영역의 소스 구현만 담당합니다.\n\ntest_writer는 테스트 코드 작성만 담당합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 필요한 조건에서만 후속 이벤트로 생성됩니다.\n\n새 skill은 목적, 트리거, 단계, 금지사항, clean code, 검증을 포함합니다.\n\n그 분야 전문가가 권장하는 모듈 경계와 구조를 구체적으로 적습니다.\n\n스파게티 코드, 거대 파일, 중복 로직, 숨은 부작용을 금지합니다.\n\ncustom downstream rule도 승인 후 추가할 수 있습니다.\n\n```text\n$codex-extend add-downstream --agent webhook-reviewer \\\n  --stage webhook_review --after-stage implement \\\n  --title \"Webhook review\" --keywords webhook,payment --approve\n```\n\n생성 후 아래를 확인합니다.\n\n```text\n$codex-agents check\n$codex-skills list\n$codex-extend check\n```\n"}, {"id": "customization-index", "title": "커스텀 방법", "text": "# 커스텀 방법\n\n커스텀은 .codex 수정 모드에서만 수행합니다.\n\n```text\n$codex-edit-mode on\n```\n\n수정 후에는 다시 닫습니다.\n\n```text\n$codex-edit-mode off\n```\n\n커스텀 가능한 항목입니다.\n\n- agent 추가 또는 설명 수정\n- skill 추가 또는 절차 수정\n- 품질 기준 threshold 수정\n- docs 문서 보강\n- hook 동작 수정\n- 언어 템플릿 수정\n\n수정 후 검증합니다.\n\n```text\n$codex-agents check\n$codex-quality gate --all --for-ai\n$codex-wiki build\n```\n\n- extension-governance: agent와 skill 생성 gate입니다.\n"}, {"id": "customization-language", "title": "언어 전환", "text": "# 언어 전환\n\n언어는 단일 ZIP 안에서 전환합니다.\n\n```text\n$codex-language ko\n$codex-language en\n```\n\n전환 시 README, AGENTS, agent, skill, docs 파일이 다시 렌더링됩니다.\ndocs/index.html도 다시 생성됩니다.\n\n언어 템플릿 위치입니다.\n\n```text\n.codex/templates/i18n.json\n.codex/templates/docs/ko/\n.codex/templates/docs/en/\n```\n\n새 문서를 추가하면 두 언어 템플릿 모두에 추가하는 것을 권장합니다.\n"}, {"id": "customization-quality-thresholds", "title": "품질 기준 커스텀", "text": "# 품질 기준 커스텀\n\n품질 기준은 `.codex/script/codex_quality.py`의 인자로 조정합니다.\n\n기본 파일 줄 수는 200줄입니다.\n\n기본 프론트 컴포넌트 줄 수는 160줄입니다.\n\n기본 page 줄 수는 120줄입니다.\n\n## 예시\n\n```text\n$codex-quality gate --front-lines 140 --page-lines 100 --for-ai\n```\n\n```text\n$codex-quality gate --strict --for-ai\n```\n\nstrict 모드는 warning도 실패로 처리합니다.\n\n팀 기준이 강하면 hook에서 strict를 쓰도록 바꿀 수 있습니다.\n\n## 추천 기준\n\n소규모 프로젝트는 front-lines 140을 권장합니다.\n\n대형 프로젝트는 shared/ui와 features 분리를 먼저 적용합니다.\n\nlegacy JS 프로젝트는 전환 TASK를 별도로 만든 뒤 TS로 이동합니다.\n"}, {"id": "quality-code-quality", "title": "코드 품질 지침", "text": "# 코드 품질 지침\n\n품질 gate는 완료 commit 전에 실행합니다.\n\n기본 명령은 `$codex-quality gate --for-ai`입니다.\n\n변경분만 보려면 staged 또는 git diff 기준을 사용합니다.\n\n## 강제 기준\n\n소스 파일은 200줄을 넘기지 않습니다.\n\n프론트 컴포넌트 파일은 160줄 이하를 목표로 합니다.\n\nReact 신규 UI는 `.tsx`를 사용합니다.\n\nJSX가 없는 로직과 타입은 `.ts`를 사용합니다.\n\n중복 코드와 중복 기능을 만들지 않습니다.\n\nsecret, token, password 흔적은 error입니다.\n\n## 프론트 기준\n\npage와 screen은 조합만 담당합니다.\n\n상태는 hook, API는 typed client, 검증은 schema로 분리합니다.\n\n같은 성질의 UI는 primitive, compound, feature로 추출합니다.\n\nvariant, size, tone, state, slot, render prop을 우선 검토합니다.\n\n## 리팩토링 기준\n\n테스트 실패 중이면 리팩토링보다 실패 수정이 먼저입니다.\n\n품질 gate error가 있으면 TASK 완료 처리를 하지 않습니다.\n\nwarn은 QA가 보고 refactor TASK 생성 여부를 판단합니다.\n"}, {"id": "quality-frontend-components", "title": "프론트 컴포넌트 지침", "text": "# 프론트 컴포넌트 지침\n\nReact 프론트는 기본적으로 TypeScript와 TSX를 사용합니다.\n\nJSX가 있는 새 UI 파일은 `.tsx`입니다.\n\nJSX가 없는 타입, hook, client, util 파일은 `.ts`입니다.\n\n신규 `.js` 또는 `.jsx`는 legacy 작업을 명시한 경우만 허용합니다.\n\n## 컴포넌트 계층\n\n컴포넌트는 이름이 아니라 성질로 재사용합니다.\n\nprimitive는 최소 UI 의미와 접근성을 담당합니다.\n\ncompound는 함께 쓰이는 조각을 묶습니다.\n\nfeature는 도메인 화면 조각을 조합합니다.\n\npage와 screen은 route composition만 담당합니다.\n\n## 재사용 기준\n\n시각 성향이 같으면 variant와 tone으로 합칩니다.\n\n크기 차이는 size prop으로 흡수합니다.\n\n상태 차이는 state, disabled, loading prop으로 흡수합니다.\n\n구조 차이는 slot, children, render prop으로 흡수합니다.\n\n행동 차이는 onChange, onSubmit 같은 callback으로 흡수합니다.\n\n## 반복 추출 대상\n\nButton, Input, Modal, Table만 대상이 아닙니다.\n\nCard, FormField, Select, Checkbox, Radio도 대상입니다.\n\nTabs, Accordion, Drawer, Popover, Tooltip도 대상입니다.\n\nToolbar, FilterBar, SearchBox, Pagination도 대상입니다.\n\nEmptyState, ErrorState, LoadingState도 대상입니다.\n\nDataTable, DetailPanel, StatusBadge도 대상입니다.\n\n동일 JSX 패턴이 3회 이상 반복되면 추출합니다.\n\n## 금지 패턴\n\npage 하나에 API, 상태, 스타일, 검증을 모두 넣지 않습니다.\n\n컴포넌트 안에서 직접 fetch와 axios를 반복하지 않습니다.\n\n비슷한 버튼을 이름만 다르게 여러 개 만들지 않습니다.\n\nany, as any, 넓은 object 타입으로 props를 숨기지 않습니다.\n\n160줄 초과 컴포넌트는 리팩토링 후보입니다.\n\n## 권장 구조\n\n```text\nsrc/\n  app/ 또는 pages/\n  features/order/\n    components/\n    hooks/\n    api/\n    types.ts\n  shared/ui/\n    Button.tsx\n    Modal.tsx\n    DataTable.tsx\n  shared/lib/\n```\n\n품질 검사는 `$codex-quality frontend --for-ai`로 확인합니다.\n"}, {"id": "quality-refactor", "title": "리팩토링 지침", "text": "# 리팩토링 지침\n\n리팩토링은 구현 직후 무조건 하는 작업이 아닙니다.\nquality gate와 refactor 분석 결과가 필요하다고 판단할 때 수행합니다.\n\n```text\n$codex-refactor analyze --for-ai\n$codex-quality gate --for-ai\n```\n\n리팩토링 원칙입니다.\n\n- 동작을 보존합니다.\n- 테스트가 실패 중이면 먼저 테스트 실패를 고칩니다.\n- 공개 API와 DB 계약을 승인 없이 바꾸지 않습니다.\n- 큰 파일을 책임 단위로 나눕니다.\n- 중복 로직을 공통 함수로 이동합니다.\n- 프론트는 primitive, feature component, hook, api client로 나눕니다.\n\n리팩토링도 TASK와 commit으로 추적합니다.\n여러 기능을 건드리면 별도 refactor TASK를 만들어 연결합니다.\n"}, {"id": "quality-security", "title": "보안 지침", "text": "# 보안 지침\n\n보안 검사는 마지막 단계에서 반드시 실행합니다.\n\n```text\n$codex-security gate\n$codex-quality gate --for-ai\n```\n\n금지 사항입니다.\n\n- secret, token, password, private key를 코드에 쓰지 않습니다.\n- .env 내용을 읽거나 문서에 붙이지 않습니다.\n- 인증과 권한 검사를 프론트에만 의존하지 않습니다.\n- 사용자 입력을 검증하지 않고 DB나 shell에 넘기지 않습니다.\n- CORS와 redirect 정책을 넓게 열지 않습니다.\n- 권한 변경, 결제, 배포 설정은 고위험 변경으로 취급합니다.\n\n보안 이슈가 발견되면 TASK를 완료하지 않습니다.\nsecurity agent 또는 refactor agent가 별도 TASK로 수정해야 합니다.\n"}, {"id": "scripts-implementation", "title": "코드 구현 설명", "text": "# 코드 구현 설명\n\n핵심 구현은 작은 Python 스크립트로 나뉩니다.\n각 파일은 200줄 이하를 목표로 합니다.\n\ncodex_state.py는 workflow 디렉터리를 만들고 TASK를 관리합니다.\ncodex_trace_view.py는 JSONL을 읽어 TASKS.md를 다시 렌더링합니다.\ncodex_task_git.py는 git commit을 만들고 TASK와 연결합니다.\ncodex_lanes.py는 worktree와 병렬 실행 CSV를 만듭니다.\ncodex_quality.py는 변경 파일을 스캔해 품질 위험을 JSON으로 출력합니다.\ncodex_shortcuts.py는 $codex-* 프롬프트를 스크립트 실행으로 바꿉니다.\ncodex_wiki.py는 docs Markdown을 검색 가능한 index.html로 합칩니다.\n\nhook 흐름입니다.\n\n```text\nUserPromptSubmit\n  -> dispatch.py\n  -> codex_shortcuts.py\n  -> 해당 script 실행\n  -> decision:block 반환\n```\n\n이렇게 하면 상태 명령이 모델 토큰을 쓰지 않습니다.\n"}, {"id": "scripts-index", "title": "script 설명", "text": "# script 설명\n\n.codex/script 안의 Python 파일은 토큰 절약을 위한 실행 단위입니다.\n\nAI가 긴 문서를 읽고 쓰는 대신 script가 상태를 계산합니다.\n\n## 핵심 script\n\n```text\ncodex_state.py       workflow, TASK, VERSION 상태 관리\ncodex_task_git.py    TASK와 commit 연결, diff, revert\ncodex_lanes.py       MAW 병렬 lane과 worktree 관리\ncodex_pipeline.py    ready queue와 downstream agent pipeline 관리\ncodex_waves.py       MAW lane을 실행 wave로 분할\ncodex_work_items.py  요구사항을 기능 TASK로 분해\ncodex_saw.py         SAW micro workflow 생성\ncodex_verify.py      SAW/TASK 완료 전 최소 검증\ncodex_quality.py     코드 품질, 프론트 TSX, 중복 검사\ncodex_security.py    secret, token, private key 검사\ncodex_refactor.py    리팩토링 필요 여부 분석\ncodex_wiki.py        docs/index.html 생성\ncodex_language.py    ko/en 문서와 skill 렌더링\ncodex_shortcuts.py   $codex-* shortcut 실행\n```\n\n## codex_pipeline.py\n\n구현, test, QA, refactor, security lane의 ready 상태를 계산합니다.\n\n```text\n$codex-pipeline status --for-ai\n$codex-pipeline ready --for-ai\n$codex-pipeline prepare\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\nready lane만 subagent batch로 실행합니다.\n\n## codex_waves.py\n\n대형 MAW 작업을 전체 크기로 막지 않고 wave로 나눕니다.\n\n```text\n$codex-waves assign\n$codex-waves plan\n$codex-waves next\n$codex-waves prompt --wave W002\n```\n\n한 wave만 준비하고 실행합니다.\n\n```text\n$codex-lanes prepare --wave W002\n$codex-lanes csv --wave W002\n$codex-lanes prompt --wave W002\n```\n\n## codex_verify.py\n\nSAW는 검증을 생략하지 않습니다.\n\n검증 범위만 줄입니다.\n\n```text\n$codex-verify gate --for-ai\n$codex-verify gate --staged --for-ai\n```\n\n검사 순서는 아래입니다.\n\n```text\nquality gate\nsecurity gate\nchanged-code test command\n```\n\n문서만 변경되면 test는 생략됩니다.\n\n코드가 변경되면 test command가 필요합니다.\n\n명령은 `.codex/state/verify.json`에 넣을 수 있습니다.\n\n```json\n{\n  \"commands\": [\"npm run test\", \"npm run typecheck\"]\n}\n```\n\n명령이 없으면 package.json, pytest, Gradle, Maven을 일부 탐지합니다.\n\n그래도 없으면 gate는 실패합니다.\n\n## risk, context, budget\n\n아래 명령은 토큰 절약의 핵심입니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-context pack --for-ai\n$codex-budget status\n```\n\n자세한 내용은 scripts/risk-context-budget.md를 참고합니다.\n\n## commit 연결\n\nTASK commit은 verif"}, {"id": "scripts-risk-context-budget", "title": "risk, context, budget", "text": "# risk, context, budget\n\n이 문서는 토큰 절약과 안전한 workflow 선택을 설명합니다.\n\n## 원칙\n\nAI가 전체 저장소를 먼저 읽지 않습니다.\n먼저 script가 위험도와 필요한 context를 짧게 계산합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-context pack --for-ai\n$codex-budget status\n```\n\n## $codex-budget\n\nSAW budget은 작은 패치 상한입니다.\n\nMAW budget은 전체 epic 상한이 아닙니다.\n\nMAW에서는 lane, wave, PR/MR 단위로 예산을 적용합니다.\n\n```text\n$codex-budget suggest --text \"order payment 구현\" --for-ai\n$codex-budget gate --staged --mode maw --for-ai\n$codex-waves plan\n```\n\n## wave 실행\n\n대형 작업은 wave로 나눕니다.\n\n```text\n$codex-waves assign\n$codex-waves next\n$codex-lanes list --wave W001\n$codex-lanes csv --wave W001\n$codex-lanes prompt --wave W001\n```\n\nW001을 검증하고 병합한 뒤 W002로 넘어갑니다.\n\n## 권장 루프\n\nSAW는 아래 순서로 사용합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-saw init ...\n$codex-context pack --for-ai\n작은 수정\n$codex-verify gate --staged --mode saw --for-ai\n$codex-task commit T001 --message \"message\"\n```\n\nMAW는 아래 순서로 사용합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-state init --workflow maw ...\n$codex-work-items apply ...\n$codex-waves plan\n$codex-lanes csv --wave W001\n```\n"}, {"id": "scripts-shortcuts", "title": "shortcut 명령", "text": "# shortcut 명령\n\n$codex-* 명령은 UserPromptSubmit hook에서 처리합니다.\n\n모델로 전달되지 않으므로 상태 조회와 자동 처리 토큰을 줄입니다.\n\n## SAW\n\nSAW는 초저토큰 단일 작업 모드입니다.\n\n```text\n$codex-saw suggest --text \"fix dto mapping\"\n$codex-saw init --title dto-fix --branch hotfix/dto-fix --text \"fix dto\"\n$codex-saw prompt\n$codex-saw gate\n$codex-task commit T001 --message \"fix dto mapping\"\n```\n\n필요할 때만 후속 TASK를 만듭니다.\n\n```text\n$codex-saw followup --kind test --title \"missing regression test\"\n$codex-saw followup --kind refactor --title \"duplicate cleanup\"\n$codex-saw followup --kind security --title \"auth rule check\"\n```\n\n## MAW\n\n```text\n$codex-work-items apply --text \"shop order payment\" --agents backend,test,qa\n$codex-pipeline ready --for-ai\n$codex-pipeline prepare\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\n## 상태와 추적\n\n```text\n$codex-state summary --for-ai\n$codex-task trace --for-ai\n$codex-task files T001\n$codex-task diff T001 --name-status\n```\n\n## 품질과 보안\n\n```text\n$codex-quality gate --for-ai\n$codex-quality frontend --for-ai\n$codex-refactor analyze --for-ai\n$codex-security gate\n```\n\n## 언어와 wiki\n\n```text\n$codex-language ko\n$codex-language en\n$codex-wiki build\n```\n\n\n## capability\n\n```text\n$codex-capabilities inspect --text \"요청\" --agents \"name\" --skills \"name\"\n```\n"}, {"id": "scripts-state-files", "title": "상태 파일 구현", "text": "# 상태 파일 구현\n\n.codex-state 아래 파일은 스크립트가 읽는 원본 상태입니다.\n\n- state.json: workflow, branch, phase, version 정보\n- tasks.jsonl: TASK 목록과 상태\n- lanes.jsonl: 병렬 lane, worktree, branch, deps 정보\n- commits.jsonl: TASK, lane, commit, 변경 파일 연결\n- events.jsonl: 시간순 이벤트 로그\n- TASKS.md: 사람이 보는 요약본\n\nTASKS.md는 원본이 아닙니다.\n스크립트가 JSONL을 읽고 매번 다시 생성합니다.\n\n이 구조 덕분에 AI가 긴 TASKS.md를 직접 편집하지 않아도 됩니다.\n완료 체크, commit 연결, 파일 변경 요약은 모두 스크립트가 처리합니다.\n"}, {"id": "skills-auto-selection", "title": "Skill 자동 선정", "text": "# Skill 자동 선정\n\nskill은 요청과 선택된 agent를 기준으로 자동 선정됩니다.\n모든 skill을 항상 읽지 않습니다.\n\n예를 들어 backend agent가 선택되고 요청에 JPA와 Swagger가 있으면\nspring-boot, jpa, api-contract, openapi-swagger가 선택됩니다.\n\nsecurity agent에는 spring-boot나 jpa를 붙이지 않습니다.\nsecurity-gate만 선택됩니다.\n\n확인 명령입니다.\n\n```text\n$codex-skills recommend --text \"spring boot order api swagger\" --agents backend,qa\n```\n\n사용자가 특정 skill을 빼라고 하면 그 지시를 우선합니다.\n예를 들어 JPA 대신 MyBatis를 쓰라고 하면 jpa skill은 사용하지 않습니다.\n"}, {"id": "skills-index", "title": "Skill 설명", "text": "# Skill 설명\n\nskill은 agent가 사용하는 반복 절차입니다.\nagent와 달리 병렬 실행 단위가 아닙니다.\n\n대표 skill입니다.\n\n- spring-boot: Spring Boot 서버 구현 절차\n- jpa: Entity, Repository, Transaction, Query 절차\n- api-contract: request, response, error 계약 정리\n- openapi-swagger: Swagger 또는 OpenAPI 문서화\n- frontend-component-architecture: 재사용 컴포넌트 설계\n- quality-gate: 대형 파일, 중복, 스파게티, 보안 흔적 검사\n- refactor-clean-code: 동작 보존 리팩토링 절차\n- security-gate: secret, token, 권한, 입력 검증 점검\n- task-trace: TASK, lane, commit 추적\n\nskill은 .codex/skills/{name}/SKILL.md에 있습니다.\nsetup_links.py는 .agents/skills를 .codex/skills로 연결합니다.\n"}, {"id": "troubleshooting", "title": "문제 해결", "text": "# 문제 해결\n\nhook이 실패하면 먼저 .codex/hooks/dispatch.py 경로를 확인합니다.\nGit 저장소가 아니면 아래 명령을 실행합니다.\n\n```text\n$codex-git doctor\n$codex-git ensure\n```\n\ndocs/index.html이 오래되었으면 다시 생성합니다.\n\n```text\n$codex-wiki build\n```\n\nTASKS.md 체크박스가 완료되지 않으면 아래를 확인합니다.\n\n- TASK status가 done인지 확인합니다.\n- commit이 TASK에 연결되었는지 확인합니다.\n- 해당 TASK의 모든 lane이 done 또는 merged인지 확인합니다.\n\n품질 gate가 실패하면 큰 파일, 중복, secret 흔적을 먼저 정리합니다.\n프론트 파일이 커졌다면 primitive, feature component, hook, api client로 나눕니다.\n"}, {"id": "workflows-agent-pipeline", "title": "Agent pipeline", "text": "# Agent pipeline\n\nAgent pipeline은 MAW의 핵심 실행 모델입니다.\n\n## 왜 필요한가\n\n단순 병렬은 구현 lane만 동시에 돌립니다.\n그러면 QA, refactor, security가 마지막에 한 번만 돌 수 있습니다.\n\nAgent pipeline은 각 구현 결과를 downstream agent가 바로 받습니다.\n\n```text\n구현/order done -> qa/order ready\n구현/payment running -> 계속 진행\n```\n\n## stage\n\n```text\nfoundation\nimplement\ntest\nqa\nrefactor\nsecurity\n```\n\n## dependency\n\n각 lane은 deps에 upstream lane id를 가집니다.\n\ndeps가 모두 done 또는 merged이면 ready가 됩니다.\n\n```text\n$codex-pipeline ready --for-ai\n```\n\n## worktree 준비\n\nready lane만 worktree를 만듭니다.\n\ndownstream lane은 가장 가까운 upstream branch에서 시작합니다.\n\n```text\n$codex-pipeline prepare\n```\n\n## CSV batch\n\n```text\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\nCSV row 하나가 subagent worker 하나입니다.\n\n## 완료\n\n각 worker는 lane별 commit을 남깁니다.\n\n```text\n$codex-task commit T002 --lane L002 --message \"Order REST API\"\n```\n\n검증 lane이 코드 변경이 없으면 빈 commit으로 증거를 남깁니다.\n\n```text\n$codex-task commit T006 --lane L006 --message \"QA order\" --allow-empty\n```\n\n## 추적\n\nTASKS.md에는 stage, agent, wave, deps, commit이 표시됩니다.\n\n전체 diff는 문서에 넣지 않습니다.\n\n```text\n$codex-task diff T002 --name-status\n$codex-task files T002\n```\n"}, {"id": "workflows-event-driven-maw-v21", "title": "이벤트 기반 MAW", "text": "# 이벤트 기반 MAW\n\nMAW는 TASK 완료 이벤트를 기준으로 후속 agent를 선택합니다.\n\n구현 agent는 구현만 담당합니다.\n\n테스트 코드는 test_writer가 작성합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 변경 내용과 위험도에 따라 실행됩니다.\n\n모든 후속 agent가 항상 도는 것은 아닙니다.\n\n```text\ncode changed -> test_writer, test_runner\npublic API or large change -> qa\nlarge maintainability risk -> refactor\npayment, auth, token, secret -> security\n```\n\nTASK가 `[x]` 완료되면 event bus가 후속 lane을 만듭니다.\n\n후속 agent가 도는 동안 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\n구현/order 완료\n-> test_writer/order, qa/order 준비\n\n구현/payment 진행 중\n-> 계속 구현 가능\n```\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nworker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n"}, {"id": "workflows-event-driven-maw", "title": "이벤트 기반 MAW", "text": "# 이벤트 기반 MAW\n\nMAW는 TASK 완료 이벤트를 기준으로 후속 agent를 선택합니다.\n\n구현 agent는 구현만 담당합니다.\n\n테스트 코드는 test_writer가 작성합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 변경 내용과 위험도에 따라 실행됩니다.\n\n모든 후속 agent가 항상 도는 것은 아닙니다.\n\n```text\ncode changed -> test_writer, test_runner\npublic API or large change -> qa\nlarge maintainability risk -> refactor\npayment, auth, token, secret -> security\n```\n\nTASK가 `[x]` 완료되면 event bus가 후속 lane을 만듭니다.\n\n후속 agent가 도는 동안 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\n구현/order 완료\n-> test_writer/order, qa/order 준비\n\n구현/payment 진행 중\n-> 계속 구현 가능\n```\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nworker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n\n## 구현 agent 일반화\n\n`backend`만 구현 agent가 아닙니다.\n\n아래 agent도 구현 producer가 될 수 있습니다.\n\n```text\nbackend, frontend, database, integration, devops, docs, performance\n```\n\nfeature 단위 구현 agent는 feature별 lane을 만듭니다.\n\n```text\nbackend/order\nfrontend/order\nintegration/payment\n```\n\nsingle 구현 agent는 프로젝트 단위 lane을 만듭니다.\n\n```text\ndevops/project\ndocs/project\nperformance/project\n```\n\n완료 이벤트는 `implement` stage 전체에 반응합니다.\n\n```text\n구현 TASK [x]\n-> 필요한 test_writer, test_runner, qa, refactor, security 생성\n```\n\n역할 구분은 아래 파일에서 조정합니다.\n\n```text\n.codex/state/agent_roles.json\n.codex/state/event_policy.json\n```\n"}, {"id": "workflows-implementation-agents", "title": "구현 agent 원칙", "text": "# 구현 agent 원칙\n\nMAW에서 `backend`는 예시일 뿐입니다.\n\n구현 agent는 자기 영역의 산출물을 만드는 agent입니다.\n\n기본 구현 agent는 다음과 같습니다.\n\n```text\nbackend\nfrontend\ndatabase\nintegration\ndevops\ndocs\nperformance\n```\n\ncustom agent도 `.codex/state/agent_roles.json`에 등록하면 구현 agent가 됩니다.\n\n구현 TASK가 `[x]` 완료되면 event bus가 후속 agent를 선택합니다.\n\n```text\n구현/order 완료\n-> 필요한 test_writer\n-> 필요한 test_runner\n-> 필요한 qa\n-> 필요한 refactor\n-> 필요한 security\n```\n\n그동안 다른 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\nfrontend/order 검증 중\nbackend/payment 구현 진행\nintegration/webhook 구현 진행\n```\n\n후속 agent는 무조건 생성하지 않습니다.\n\n변경 파일, 위험도, feature, policy를 보고 필요한 agent만 생성합니다.\n"}, {"id": "workflows-maw", "title": "MAW 멀티 에이전트 파이프라인", "text": "# MAW 멀티 에이전트 파이프라인\n\n$maw는 큰 작업을 여러 feature lane으로 나누는 workflow입니다.\nagent 개수를 묻지 않고 추천 agent를 보여준 뒤 선택을 받습니다.\n\n## 핵심 개념\n\n```text\nagent = 역할\nskill = 작업 절차\nlane = 실제 병렬 실행 단위\nwave = 한 번에 실행하고 병합할 lane 묶음\npipeline = lane dependency graph\nepic = 전체 목표\n```\n\norder와 payment는 별도 lane입니다.\n\n```text\nT002 Order REST API   L002 backend implement\nT003 Payment REST API L003 backend implement\n```\n\n둘 다 backend agent를 쓰지만 서로 다른 worktree에서 실행합니다.\nSpring Boot, JPA, Swagger는 backend agent가 쓰는 skill입니다.\n\n## 진짜 멀티 에이전트 흐름\n\nMAW는 단순히 backend, qa, security를 순서대로 두지 않습니다.\n구현 task가 끝나면 그 task를 downstream agent가 받습니다.\n\n```text\nL002 backend order implement\n  -> L004 test order\n  -> L006 qa order\n  -> L008 refactor order\n  -> L010 security order\n\nL003 backend payment implement\n  -> L005 test payment\n  -> L007 qa payment\n  -> L009 refactor payment\n  -> L011 security payment\n```\n\n따라서 처음에는 backend/order와 backend/payment가 동시에 ready입니다.\norder가 먼저 끝나면 payment가 아직 실행 중이어도 order QA가 ready가 됩니다.\n\n## ready queue\n\n다음에 실행할 수 있는 lane만 봅니다.\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nready lane만 worktree로 준비합니다.\n\n```text\n$codex-pipeline prepare\n```\n\nready lane만 CSV로 만듭니다.\n\n```text\n$codex-pipeline csv --ready\n```\n\nsubagent 실행 프롬프트를 만듭니다.\n\n```text\n$codex-pipeline prompt\n```\n\nCodex에서 CSV row마다 subagent 하나를 spawn합니다.\n\n## 실행 반복\n\n```text\n1. $codex-pipeline ready --for-ai\n2. $codex-pipeline prepare\n3. $codex-pipeline csv --ready\n4. Codex가 CSV row마다 subagent spawn\n5. 각 lane은 $codex-task commit 으로 완료\n6. 완료 lane을 root branch에 merge\n7. 다시 $codex-pipeline ready --for-ai\n```\n\n## /agent 와 agent 목록\n\n/agent 는 실행 중인 subagent thread를 전환하거나 보는 명령입니다.\n등록된 custom agent 목록이 안 보일 수 있습니다.\n\n등록된 agent 파일 목록은 아래로 봅니다.\n\n```text\n$codex-agents list\n$codex-agents check\n```\n\n## budget 기준\n\nMAW budget은 전체 epic 제한이 아닙니다.\n\n80개 파일이나 3000줄 제한은 한 wave 또는 PR/MR의 안전 상한입니다.\n전체 신규 구현이 이 값을 넘을 수 있습니다.\n\n이 경우 전체를 막지 않고 wave를 나눕니다.\n\n```text\nW001 contract, schema\nW002 order, payment backend implement\nW003 order, payment test and QA\nW004 refactor and securi"}, {"id": "workflows-quality-refactor-security", "title": "품질, 리팩토링, 보안 절차", "text": "# 품질, 리팩토링, 보안 절차\n\n모든 구현은 검증 없이 완료하지 않습니다.\n\nMAW와 SAW는 검증 방식이 다릅니다.\n\n## MAW 절차\n\nMAW는 큰 작업이므로 별도 TASK와 lane을 사용할 수 있습니다.\n\n```text\n구현 -> 테스트 -> QA -> 품질 gate -> 리팩토링 판단 -> 보안 gate -> 최종 리뷰\n```\n\nMAW의 기능 lane commit은 먼저 품질 gate를 통과해야 합니다.\n\n```text\n$codex-quality gate --staged --for-ai\n```\n\n테스트와 보안은 별도 test, qa, security TASK에서 다룰 수 있습니다.\n\n## SAW 절차\n\nSAW는 작은 작업이므로 별도 agent chain을 만들지 않습니다.\n\n하지만 테스트와 보안 검사는 생략하지 않습니다.\n\nSAW는 아래 하나의 gate로 검증합니다.\n\n```text\n$codex-verify gate --staged --for-ai\n```\n\n이 gate는 아래를 실행합니다.\n\n```text\nstaged quality gate\nchanged-code targeted test\nstaged security gate\n```\n\n코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.\n\n테스트 명령은 아래 파일에 설정합니다.\n\n```text\n.codex/state/verify.json\n```\n\n## 리팩토링 판단\n\n리팩토링은 항상 동작 보존이어야 합니다.\n\n공개 API, DB 스키마, 인증 정책은 승인 없이 바꾸지 않습니다.\n\n필요 여부는 script로 먼저 확인합니다.\n\n```text\n$codex-refactor analyze --for-ai\n```\n\n## 보안 기준\n\n보안 gate는 secret, token, private key, password 흔적을 검사합니다.\n\n보안 이슈가 있으면 PR 또는 MR 준비 단계로 넘어가지 않습니다.\n"}, {"id": "workflows-saw", "title": "SAW 초저토큰 단일 워크플로우", "text": "# SAW 초저토큰 단일 워크플로우\n\n$saw는 작은 변경을 최소 컨텍스트로 끝내기 위한 모드입니다.\n\nv16부터 SAW는 검증을 생략하지 않습니다.\n\n차이는 검증을 agent chain으로 하지 않고 script gate로 한다는 점입니다.\n\n## 핵심 목적\n\n```text\nprimary agent 하나\nTASK 하나\n필요 skill만 자동 선택\nquality, test, security는 script gate\ncommit 하나로 완료 추적\n```\n\n## 검증 원칙\n\nSAW는 테스트와 보안 검사를 건너뛰지 않습니다.\n\n다만 아래처럼 범위를 줄입니다.\n\n```text\n문서만 변경: quality + security\n코드 변경: quality + test + security\n```\n\n코드가 바뀌었는데 test command가 없으면 gate는 실패합니다.\n\n이 경우 `.codex/state/verify.json`에 명령을 추가합니다.\n\n```json\n{\n  \"commands\": [\"npm run test\", \"npm run typecheck\"]\n}\n```\n\n## MAW와 차이\n\nMAW는 큰 작업을 기능 lane으로 분해합니다.\n\n```text\norder backend lane\npayment backend lane\nfrontend checkout lane\ntest lane\nsecurity lane\n```\n\nSAW는 그렇게 하지 않습니다.\n\n```text\nT001 dto mapping fix\nprimary agent: backend\nskills: spring-boot, api-contract, verify-gate\n```\n\n## 언제 SAW를 쓰나요?\n\n- 단일 버그 수정\n- DTO 필드 매핑 수정\n- 작은 API 응답 수정\n- 작은 컴포넌트 props 정리\n- 테스트 하나 보완\n- 문서 한 부분 수정\n- 파일 몇 개 안의 좁은 리팩토링\n\n기능이 둘 이상이면 MAW를 사용합니다.\n\n## 사용법\n\n계획만 봅니다.\n\n```text\n$codex-saw suggest --text \"주문 응답 DTO totalPrice 매핑 오류 수정\"\n```\n\nworkflow와 TASK 하나를 만듭니다.\n\n```text\n$codex-saw init --title dto-fix --branch hotfix/dto-fix --text \"dto 수정\"\n```\n\n다음 작업만 짧게 봅니다.\n\n```text\n$codex-saw prompt\n```\n\n작업 후 검증을 실행합니다.\n\n```text\n$codex-verify gate --for-ai\n```\n\n통과하면 commit으로 완료합니다.\n\n```text\n$codex-task commit T001 --message \"fix dto mapping\"\n```\n\ncommit 명령은 staged verify gate를 다시 실행합니다.\n\n## 후속 TASK\n\ngate가 실패하면 필요한 경우에만 후속 TASK를 만듭니다.\n\n```text\n$codex-saw followup --kind refactor --title \"duplicate cleanup\"\n$codex-saw followup --kind test --title \"missing regression test\"\n$codex-saw followup --kind security --title \"auth rule check\"\n```\n\n## 토큰 절약 원리\n\nSAW는 아래를 하지 않습니다.\n\n```text\n여러 agent chain 기본 생성 안 함\n여러 TASK 기본 생성 안 함\nlane, worktree, CSV 생성 안 함\n긴 TASKS.md 직접 판독 안 함\nQA agent에게 장문 판단을 맡기지 않음\n```\n\n대신 script 결과만 짧게 봅니다.\n\n```text\n$codex-state summary --for-ai\n$codex-saw prompt\n$codex-verify gate --for-ai\n$codex-task trace --for-ai\n```\n"}, {"id": "workflows-task-commit-trace", "title": "TASK, lane, commit 추적", "text": "# TASK, lane, commit 추적\n\nTASK는 완료 증거로 commit을 가져야 합니다.\ncommit message는 현재 언어 설정을 따르며 제목, body, footer를 모두 가집니다.\n\n제목은 conventional commit 형식입니다.\n\n```text\nfeat: 주문 생성 API 구현\n```\n\nbody는 변경 이유와 검증 근거를 짧게 남깁니다.\n\n```text\n목적: 주문 생성 API를 구현합니다.\n범위: TASK T002 / lane L002 / workflow maw\n완료 기준: 검증과 TASK 추적이 완료됩니다.\n검증: codex_verify gate --staged --mode maw\n```\n\nfooter는 Codex 추적 정보를 구조화해서 남깁니다.\n\n```text\nCodex-Task: T002\nCodex-Lane: L002\nCodex-Workflow: v1-shop\nCodex-Agent: backend\nCodex-Skills: spring-boot,jpa,openapi-swagger\nCodex-Verification: codex_verify gate --staged --mode maw\nCodex-Language: ko\n```\n\ncommit 후 스크립트는 commits.jsonl에 실제 commit hash와 변경 파일을 기록합니다.\nTASKS.md에는 A, M, D, R 요약만 표시합니다.\n전체 diff는 필요할 때만 스크립트로 봅니다.\n\n```text\n$codex-task files T002\n$codex-task diff T002 --name-status\n$codex-task revert-task T002\n```\n\nTASK 체크박스가 [x]가 되는 조건입니다.\n\n- TASK status가 done입니다.\n- 연결 commit이 하나 이상 있습니다.\n- 모든 lane이 done 또는 merged입니다.\n\n이 조건을 만족하지 않으면 TASKS.md는 [ ] 상태를 유지합니다.\n"}, {"id": "workflows-task-event-agents", "title": "TASK 완료 이벤트와 후속 agent", "text": "# TASK 완료 이벤트와 후속 agent\n\nMAW는 모든 agent를 한 번에 고정 실행하지 않습니다.\n\nTASK가 commit과 연결되어 `[x]`가 되면 이벤트가 발생합니다.\n\n그 이벤트가 필요한 후속 agent만 생성합니다.\n\n예:\n\n```text\n구현/order 완료\n-> test_writer/order\n-> test_runner/order\n-> qa/order\n-> 필요 시 refactor/order\n-> 필요 시 security/order\n```\n\npayment가 아직 진행 중이어도 order 검증은 시작할 수 있습니다.\n\n구현 agent는 다음 ready 구현 TASK를 계속 진행합니다.\n\n후속 agent는 자신의 역할만 수행합니다.\n\ntest_writer는 테스트 코드를 작성하지만 실행하지 않습니다.\n\ntest_runner는 테스트를 실행하지만 제품 코드를 구현하지 않습니다.\n\nqa는 사용자 흐름과 회귀 위험을 검토합니다.\n\nrefactor는 동작 보존 리팩토링만 수행합니다.\n\nsecurity는 보안 위험만 검토합니다.\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\n후속 worker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n"}, {"id": "workflows-token-budget", "title": "토큰 예산과 wave budget", "text": "# 토큰 예산과 wave budget\n\nSAW는 작은 패치 전용입니다.\n\n변경 파일, 코드 파일, 변경 줄 수가 예산을 넘으면 SAW를 멈춥니다.\n이때 MAW 또는 follow-up TASK로 분리합니다.\n\nMAW는 다릅니다.\n\nMAW budget은 전체 신규 구현의 총량 상한이 아닙니다.\n\n```text\n전체 epic은 80개 파일이나 3000줄을 넘을 수 있습니다.\n단, 한 lane과 한 wave는 예산 안에 들어와야 합니다.\n```\n\n기본 기준입니다.\n\n```text\nlane: 30 files, 900 changed lines\nwave: 6 lanes, 80 files, 3000 changed lines\n```\n\n전체가 크면 wave를 나눕니다.\n\n```text\nW001 contract, schema\nW002 order, payment, member backend\nW003 product, cart, coupon backend\nW004 frontend screens\nW005 test, QA, quality, security\n```\n\n확인 명령입니다.\n\n```text\n$codex-budget status\n$codex-budget suggest --text \"order payment rest api\" --for-ai\n$codex-waves plan\n$codex-waves next\n```\n\n특정 wave만 준비하고 실행합니다.\n\n```text\n$codex-lanes prepare --wave W002\n$codex-lanes csv --wave W002\n$codex-lanes prompt --wave W002\n```\n\n한 lane이 너무 커지면 기능을 더 나눕니다.\n\n```text\norder 전체 -> order create, order read, order state, order cancel\npayment 전체 -> payment request, payment callback, payment refund\n```\n\nAI가 전체 저장소를 읽기 전에는 context pack을 먼저 봅니다.\n\n```text\n$codex-context pack --for-ai\n$codex-context pack --task T001 --for-ai\n```\n\n전체 diff나 전체 파일 읽기는 마지막 수단입니다.\n"}, {"id": "workflows-token-context", "title": "토큰 최적화와 컨텍스트 관리", "text": "# 토큰 최적화와 컨텍스트 관리\n\nAI가 긴 문서를 직접 읽어 판단하지 않게 합니다.\n\n상태, 진행률, 변경 파일, commit 연결은 script가 계산합니다.\n\nAI는 짧은 JSON 요약만 보고 다음 작업을 결정합니다.\n\n## 기본 명령\n\n```text\n$codex-context pack --for-ai\n$codex-task trace --for-ai\n$codex-state summary --for-ai\n```\n\n## SAW 제한\n\nSAW는 micro patch입니다.\n\n기본 제한은 작은 파일 수와 작은 변경 줄 수입니다.\n\n제한을 넘으면 MAW로 전환합니다.\n\n## MAW wave 제한\n\nMAW는 전체 epic이 커도 됩니다.\n\n다만 한 lane과 한 wave는 budget 안에 들어와야 합니다.\n\n```text\n$codex-lanes csv --wave W001\n$codex-verify gate --staged --mode maw --for-ai\n```\n\n## 읽기 규칙\n\nTASKS.md 전체를 매번 읽지 않습니다.\n\n전체 git log를 매번 읽지 않습니다.\n\n전체 diff는 사용자가 요청하거나 gate 실패 때만 봅니다.\n"}];
+const docs = [{"id": "00-overview", "title": "개요", "text": "# 개요\n\n이 템플릿은 Codex를 Git 기반 개발 자동화에 안전하게 쓰기 위한 구조입니다.\n목표는 AI가 코드를 작성하되, 상태 추적과 반복 작업은 스크립트가 맡는 것입니다.\n그래서 TASK, lane, commit, diff, rollback은 사람이 보기 좋은 문서와 별개로\nJSONL 원본 상태에 기록됩니다.\n\n핵심 원칙은 네 가지입니다.\n\n- agent는 역할입니다.\n- skill은 반복 가능한 절차입니다.\n- lane은 병렬 실행 단위입니다.\n- TASK는 commit과 연결되는 추적 단위입니다.\n\n예를 들어 쇼핑몰 REST API를 만든다면 backend agent 하나가 모든 것을 하지 않습니다.\nOrder REST API와 Payment REST API는 서로 다른 lane으로 나뉩니다.\n하지만 Spring Boot, JPA, Swagger는 agent가 아니라 backend agent가 쓰는 skill입니다.\n\n토큰 최적화는 긴 문서를 계속 읽지 않는 방식으로 달성합니다.\n$codex-state, $codex-task, $codex-quality 같은 shortcut은 hook에서 처리됩니다.\n따라서 상태 조회, 완료 처리, 품질 검사 결과는 모델로 보내지지 않습니다.\n"}, {"id": "01-architecture", "title": "구조 원리", "text": "# 구조 원리\n\n이 템플릿의 작업 단위는 계층으로 나뉩니다.\n\n```text\n사용자 요청\n  -> agent 추천\n  -> skill 자동 선정\n  -> TASK 생성\n  -> lane 생성\n  -> worktree 병렬 작업\n  -> commit 연결\n  -> quality/refactor/security gate\n```\n\nagent는 작업자의 역할입니다.\nbackend, frontend, database, integration처럼 책임을 나눕니다.\ndevops, docs, performance, test, qa, security, refactor도 분리합니다.\n\nskill은 agent가 작업할 때 읽는 전문 절차입니다.\nspring-boot, jpa, openapi-swagger, frontend-component-architecture처럼\n작업에 필요한 절차만 선택됩니다.\n\nlane은 실제 병렬 실행 단위입니다.\n같은 backend agent라도 order, payment, member는 별도 lane으로 실행됩니다.\n\nTASK는 추적 단위입니다.\nTASK는 하나 이상의 lane과 하나 이상의 commit을 가질 수 있습니다.\nTASK가 완료되려면 모든 lane이 done 또는 merged 상태여야 합니다.\n또한 commit이 연결되어야 합니다.\n\nTASKS.md는 사람이 보는 요약본입니다.\n원본 상태는 state.json, tasks.jsonl, lanes.jsonl, commits.jsonl, events.jsonl입니다.\n"}, {"id": "02-file-tree", "title": "파일 트리", "text": "# 파일 트리\n\n대표 구조입니다.\n\n```text\n.codex/\n  AGENTS.md\n  config.toml\n  hooks.json\n  agents/\n  hooks/\n  rules/\n  script/\n  skills/\n  state/\n  templates/\n  tests/\n.agents/\n  README.md\ndocs/\n  index.html\n  *.md\n.codex-state/\n  {날짜}/vN-{제목}/\n    TASKS.md\n    state.json\n    tasks.jsonl\n    lanes.jsonl\n    commits.jsonl\n    events.jsonl\n.worktrees/\n  {workflow}/l001/\n```\n\n.codex는 Codex 동작에 필요한 템플릿 원본입니다.\n.agents는 Codex skill 탐색 경로를 맞추기 위한 연결 지점입니다.\ndocs는 사용자를 위한 wiki 문서입니다.\n.codex-state는 실행 중인 workflow의 원본 상태입니다.\n.worktrees는 병렬 lane별 작업 공간입니다.\n\n일반 프로젝트 작업 중에는 .codex 수정을 피합니다.\n.codex를 수정해야 할 때만 $codex-edit-mode on을 사용합니다.\n"}, {"id": "03-quick-start", "title": "빠른 시작", "text": "# 빠른 시작\n\n프로젝트 루트에 ZIP을 풉니다.\n\n```bash\npython3 .codex/script/setup_links.py\n```\n\n언어를 확인합니다.\n\n```text\n$codex-language status\n```\n\n한국어로 전환합니다.\n\n```text\n$codex-language ko\n```\n\nGit 상태를 확인합니다.\n\n```text\n$codex-git doctor\n```\n\nMAW를 시작합니다.\n\n```text\n$maw spring boot 쇼핑몰 order payment rest api swagger jpa\n```\n\nCodex는 한 번에 하나의 질문만 해야 합니다.\n요구사항이 충분해지면 agent 추천을 보여줍니다.\n사용자는 추천 목록을 보고 필요한 agent를 선택하거나 추가합니다.\n\n상태 조회는 아래처럼 shortcut을 사용합니다.\n\n```text\n$codex-state summary --for-ai\n$codex-task trace --for-ai\n```\n\n## SAW 최소 토큰 예\n\n```text\n$codex-saw suggest --text \"dto 필드 매핑 오류 수정\"\n```\n\n\n\n## 초기 설계 gate\n\n큰 요청은 구현 전에 product type, platform/runtime, framework/engine,\ncapability, stack decision을 먼저 분류합니다.\n\n```text\n$codex-work-items suggest --text \"spring boot react 커뮤니티\" --agents backend,frontend\n```\n\nSpring Boot가 명시되면 domain-first Java 패키지 구조 계약이 붙습니다.\nReact만 명시되면 Vite SPA와 Next.js/SSR 선택을 먼저 확인합니다.\nNext.js가 명시되면 `src/app` App Router와 server/client 경계를 계약으로 둡니다.\n"}, {"id": "README", "title": "Codex Wiki 문서", "text": "# Codex Wiki 문서\n\n이 폴더는 템플릿의 상세 설명입니다.\ndocs/index.html을 열면 검색 가능한 wiki로 모든 문서를 볼 수 있습니다.\n문서 원본은 Markdown이고, index.html은 codex_wiki.py가 생성합니다.\n\n## 추천 순서\n\n- 00-overview.md\n- 01-architecture.md\n- 02-file-tree.md\n- 03-quick-start.md\n- workflows/maw.md\n- quality/code-quality.md\n- scripts/index.md\n- customization/index.md\n"}, {"id": "agents-index", "title": "Agent 설명", "text": "# Agent 설명\n\nagent는 역할입니다. skill이나 기능명이 아닙니다.\n\n- architecture: 요구사항, API 계약, 도메인 경계 설계\n- backend: 서버 API, 서비스, 도메인 로직 구현\n- frontend: 화면, 컴포넌트, 클라이언트 상태 구현\n- database: 스키마, migration, index, 쿼리 검토\n- test: 단위 테스트, 통합 테스트, 회귀 테스트 생성\n- qa: 수용 기준, 사용자 흐름, 품질 gate 판단\n- security: 인증, 권한, secret, 취약점 검토\n- refactor: 동작 보존 리팩토링과 중복 제거\n- devops: CI/CD, Docker, GitHub Actions, GitLab CI\n- git: branch, commit, diff, rollback, PR/MR 준비\n- docs: README, wiki, API 문서, 릴리즈 노트\n- integration: 외부 API, 이벤트, 메시징 연동\n- performance: 느린 쿼리, 캐시, latency 검토\n\nagent 파일은 .codex/agents/*.toml입니다.\n모든 agent에는 name, description, model, model_reasoning_effort가 있어야 합니다.\n\n## /agent 와 $codex-agents\n\n/agent 는 실행 중인 subagent thread를 전환하거나 확인하는 용도입니다.\n아직 spawn된 subagent가 없으면 목록이 비어 보일 수 있습니다.\n\n프로젝트에 등록된 custom agent는 아래 명령으로 확인합니다.\n\n```text\n$codex-agents list\n$codex-agents check\n```\n\n## MAW에서 같은 agent 여러 개 실행\n\n같은 agent type을 여러 lane에 배정할 수 있습니다.\n\n```text\nL002 backend Order REST API\nL003 backend Payment REST API\n```\n\n이 경우 backend agent가 두 worker로 동시에 실행됩니다.\n\n각 worker는 다른 worktree와 branch를 사용합니다.\n\n## downstream agent\n\n구현이 끝난 lane은 downstream agent로 전달됩니다.\n\n```text\nimplement -> test -> qa -> refactor -> security\n```\n\nQA, refactor, security는 upstream lane의 commit과 diff를 우선 확인합니다.\n전체 repo를 다시 읽지 않습니다.\n"}, {"id": "agents-selection", "title": "Agent 선택 원리", "text": "# Agent 선택 원리\n\nCodex는 요청 텍스트를 보고 agent를 추천합니다.\n사용자는 추천 목록에서 고르거나 agent를 추가할 수 있습니다.\n\n예시입니다.\n\n```text\n$codex-agents recommend --text \"쇼핑몰 order payment rest api\"\n```\n\n추천 예시는 architecture, backend, database, test, qa, security입니다.\nfrontend가 필요한 화면 작업이면 frontend도 추가합니다.\n\nagent 수를 먼저 묻지 않는 이유는 사용자가 병렬 개수를 알기 어렵기 때문입니다.\n대신 목적에 맞는 agent를 고르면 work_items가 기능 lane을 만듭니다.\n\n새 agent는 기본적으로 자동 생성하지 않습니다.\n필요하면 $codex-edit-mode on 후 .codex/agents에 명시적으로 추가합니다.\n"}, {"id": "customization-add-agent-skill", "title": "Agent와 skill 추가", "text": "# Agent와 skill 추가\n\nagent는 .codex/agents/{name}.toml에 추가합니다.\n\n필수 필드입니다.\n\n- name\n- description\n- model\n- model_reasoning_effort\n- developer_instructions\n\nskill은 .codex/skills/{name}/SKILL.md에 추가합니다.\nSKILL.md에는 front matter의 name과 description이 있어야 합니다.\n\n추가 후 codex_skills.py 또는 codex_agents.py 추천 규칙을 갱신합니다.\n언어 전환에도 반영하려면 .codex/templates/i18n.json도 갱신합니다.\n\n검증 명령입니다.\n\n```text\n$codex-agents check\n$codex-skills list\n```\n\n## 구현 agent로 확장하기\n\n새 agent가 실제 산출물을 만드는 역할이면 구현 agent입니다.\n\n예를 들어 `mobile`, `crawler`, `ml` agent를 추가할 수 있습니다.\n\n```text\n$codex-extend check agent --name mobile --purpose \"mobile UI 구현\"\n```\n\n중복이 없으면 agent를 만든 뒤 role 설정에 추가합니다.\n\n```text\n.codex/state/agent_roles.json\n```\n\nfeature별로 여러 lane을 만들 agent는 여기에 넣습니다.\n\n```json\n\"feature_implementation_agents\": [\"backend\", \"frontend\", \"mobile\"]\n```\n\n프로젝트 단위로 한 번만 도는 agent는 여기에 넣습니다.\n\n```json\n\"single_implementation_agents\": [\"devops\", \"docs\"]\n```\n"}, {"id": "customization-extension-governance", "title": "확장 거버넌스", "text": "# 확장 거버넌스\n\nagent와 skill은 계속 확장할 수 있습니다.\n\n하지만 무작위 생성은 금지합니다.\n\n먼저 기존 agent와 skill이 처리할 수 있는지 검사합니다.\n\n```text\n$codex-extend scan --text \"payment webhook 검증\" --for-ai\n```\n\n또는 agent와 skill 후보를 명시해서 검사합니다.\n\n```text\n$codex-capabilities inspect --text \"요청\" --agents \"name\" --skills \"name\"\n```\n\n유사 항목이 있으면 새로 만들지 않고 기존 capability를 재사용합니다.\n\n중복이 없고 목적이 명확할 때만 생성합니다.\n\n```text\n$codex-edit-mode on\n$codex-extend create-agent --name webhook-reviewer \\\n  --purpose \"webhook 변경만 검토\" \\\n  --approve --reason \"중복 없음\"\n$codex-edit-mode off\n```\n\n새 skill은 하나의 반복 workflow만 담당해야 합니다.\n\n```text\n$codex-edit-mode on\n$codex-extend create-skill --name webhook-safety \\\n  --purpose \"webhook 검증 절차\" \\\n  --domain \"backend integration\" --approve\n$codex-edit-mode off\n```\n\n새 agent는 자기 사명만 수행합니다.\n\n구현 agent는 자기 영역의 소스 구현만 담당합니다.\n\ntest_writer는 테스트 코드 작성만 담당합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 필요한 조건에서만 후속 이벤트로 생성됩니다.\n\n새 skill은 목적, 트리거, 단계, 금지사항, clean code, 검증을 포함합니다.\n\n그 분야 전문가가 권장하는 모듈 경계와 구조를 구체적으로 적습니다.\n\n스파게티 코드, 거대 파일, 중복 로직, 숨은 부작용을 금지합니다.\n\ncustom downstream rule도 승인 후 추가할 수 있습니다.\n\n```text\n$codex-extend add-downstream --agent webhook-reviewer \\\n  --stage webhook_review --after-stage implement \\\n  --title \"Webhook review\" --keywords webhook,payment --approve\n```\n\n생성 후 아래를 확인합니다.\n\n```text\n$codex-agents check\n$codex-skills list\n$codex-extend check\n```\n"}, {"id": "customization-index", "title": "커스텀 방법", "text": "# 커스텀 방법\n\n커스텀은 .codex 수정 모드에서만 수행합니다.\n\n```text\n$codex-edit-mode on\n```\n\n수정 후에는 다시 닫습니다.\n\n```text\n$codex-edit-mode off\n```\n\n커스텀 가능한 항목입니다.\n\n- agent 추가 또는 설명 수정\n- skill 추가 또는 절차 수정\n- 품질 기준 threshold 수정\n- docs 문서 보강\n- hook 동작 수정\n- 언어 템플릿 수정\n\n수정 후 검증합니다.\n\n```text\n$codex-agents check\n$codex-quality gate --all --include-codex --max-lines 500 --for-ai\n$codex-verify gate --for-ai\n$codex-wiki build\n```\n\n- extension-governance: agent와 skill 생성 gate입니다.\n\n\n문서를 추가하거나 수정하면 `docs/` 원본과 `.codex/templates/docs/ko,en`을\n같이 갱신합니다. 언어 전환은 template에서 `docs/`를 다시 렌더링합니다.\n"}, {"id": "customization-language", "title": "언어 전환", "text": "# 언어 전환\n\n언어는 단일 ZIP 안에서 전환합니다.\n\n```text\n$codex-language ko\n$codex-language en\n```\n\n전환 시 README, AGENTS, agent, skill, docs 파일이 다시 렌더링됩니다.\ndocs/index.html도 다시 생성됩니다.\n\n언어 템플릿 위치입니다.\n\n```text\n.codex/templates/i18n.json\n.codex/templates/docs/ko/\n.codex/templates/docs/en/\n```\n\n새 문서를 추가하면 두 언어 템플릿 모두에 추가하는 것을 권장합니다.\n"}, {"id": "customization-quality-thresholds", "title": "품질 기준 커스텀", "text": "# 품질 기준 커스텀\n\n품질 기준은 `.codex/script/codex_quality.py`의 인자로 조정합니다.\n\n기본 파일 줄 수는 200줄입니다.\n\n기본 프론트 컴포넌트 줄 수는 160줄입니다.\n\n기본 page 줄 수는 120줄입니다.\n\n## 예시\n\n```text\n$codex-quality gate --front-lines 140 --page-lines 100 --for-ai\n```\n\n```text\n$codex-quality gate --strict --for-ai\n```\n\nstrict 모드는 warning도 실패로 처리합니다.\n\n팀 기준이 강하면 hook에서 strict를 쓰도록 바꿀 수 있습니다.\n\n## 추천 기준\n\n소규모 프로젝트는 front-lines 140을 권장합니다.\n\n대형 프로젝트는 shared/ui와 features 분리를 먼저 적용합니다.\n\nlegacy JS 프로젝트는 전환 TASK를 별도로 만든 뒤 TS로 이동합니다.\n"}, {"id": "quality-code-quality", "title": "코드 품질 지침", "text": "# 코드 품질 지침\n\n품질 gate는 완료 commit 전에 실행합니다.\n\n기본 명령은 `$codex-quality gate --for-ai`입니다.\n\n변경분만 보려면 staged 또는 git diff 기준을 사용합니다.\n\n## 강제 기준\n\n소스 파일은 200줄을 넘기지 않습니다.\n\n프론트 컴포넌트 파일은 160줄 이하를 목표로 합니다.\n\nReact 신규 UI는 `.tsx`를 사용합니다.\n\nJSX가 없는 로직과 타입은 `.ts`를 사용합니다.\n\n중복 코드와 중복 기능을 만들지 않습니다.\n\nsecret, token, password 흔적은 error입니다.\n\n## 프론트 기준\n\npage와 screen은 조합만 담당합니다.\n\n상태는 hook, API는 typed client, 검증은 schema로 분리합니다.\n\n같은 성질의 UI는 primitive, compound, feature로 추출합니다.\n\nvariant, size, tone, state, slot, render prop을 우선 검토합니다.\n\n## 리팩토링 기준\n\n테스트 실패 중이면 리팩토링보다 실패 수정이 먼저입니다.\n\n품질 gate error가 있으면 TASK 완료 처리를 하지 않습니다.\n\nwarn은 QA가 보고 refactor TASK 생성 여부를 판단합니다.\n"}, {"id": "quality-frontend-components", "title": "프론트 컴포넌트 지침", "text": "# 프론트 컴포넌트 지침\n\nReact 프론트는 기본적으로 TypeScript와 TSX를 사용합니다.\n\nJSX가 있는 새 UI 파일은 `.tsx`입니다.\n\nJSX가 없는 타입, hook, client, util 파일은 `.ts`입니다.\n\n신규 `.js` 또는 `.jsx`는 legacy 작업을 명시한 경우만 허용합니다.\n\n## 컴포넌트 계층\n\n컴포넌트는 이름이 아니라 성질로 재사용합니다.\n\nprimitive는 최소 UI 의미와 접근성을 담당합니다.\n\ncompound는 함께 쓰이는 조각을 묶습니다.\n\nfeature는 도메인 화면 조각을 조합합니다.\n\npage와 screen은 route composition만 담당합니다.\n\n## 재사용 기준\n\n시각 성향이 같으면 variant와 tone으로 합칩니다.\n\n크기 차이는 size prop으로 흡수합니다.\n\n상태 차이는 state, disabled, loading prop으로 흡수합니다.\n\n구조 차이는 slot, children, render prop으로 흡수합니다.\n\n행동 차이는 onChange, onSubmit 같은 callback으로 흡수합니다.\n\n## 반복 추출 대상\n\nButton, Input, Modal, Table만 대상이 아닙니다.\n\nCard, FormField, Select, Checkbox, Radio도 대상입니다.\n\nTabs, Accordion, Drawer, Popover, Tooltip도 대상입니다.\n\nToolbar, FilterBar, SearchBox, Pagination도 대상입니다.\n\nEmptyState, ErrorState, LoadingState도 대상입니다.\n\nDataTable, DetailPanel, StatusBadge도 대상입니다.\n\n동일 JSX 패턴이 3회 이상 반복되면 추출합니다.\n\n## 금지 패턴\n\npage 하나에 API, 상태, 스타일, 검증을 모두 넣지 않습니다.\n\n컴포넌트 안에서 직접 fetch와 axios를 반복하지 않습니다.\n\n비슷한 버튼을 이름만 다르게 여러 개 만들지 않습니다.\n\nany, as any, 넓은 object 타입으로 props를 숨기지 않습니다.\n\n160줄 초과 컴포넌트는 리팩토링 후보입니다.\n\n## 권장 구조\n\n```text\nsrc/\n  app/ 또는 pages/\n  features/order/\n    components/\n    hooks/\n    api/\n    types.ts\n  shared/ui/\n    Button.tsx\n    Modal.tsx\n    DataTable.tsx\n  shared/lib/\n```\n\n품질 검사는 `$codex-quality frontend --for-ai`로 확인합니다.\n"}, {"id": "quality-refactor", "title": "리팩토링 지침", "text": "# 리팩토링 지침\n\n리팩토링은 구현 직후 무조건 하는 작업이 아닙니다.\nquality gate와 refactor 분석 결과가 필요하다고 판단할 때 수행합니다.\n\n```text\n$codex-refactor analyze --for-ai\n$codex-quality gate --for-ai\n```\n\n리팩토링 원칙입니다.\n\n- 동작을 보존합니다.\n- 테스트가 실패 중이면 먼저 테스트 실패를 고칩니다.\n- 공개 API와 DB 계약을 승인 없이 바꾸지 않습니다.\n- 큰 파일을 책임 단위로 나눕니다.\n- 중복 로직을 공통 함수로 이동합니다.\n- 프론트는 primitive, feature component, hook, api client로 나눕니다.\n\n리팩토링도 TASK와 commit으로 추적합니다.\n여러 기능을 건드리면 별도 refactor TASK를 만들어 연결합니다.\n"}, {"id": "quality-security", "title": "보안 지침", "text": "# 보안 지침\n\n보안 검사는 마지막 단계에서만 보는 검사가 아닙니다.\n`$codex-verify gate`가 budget, quality, security, test를 함께 실행합니다.\n\n```text\n$codex-verify gate --for-ai\n$codex-security gate\n$codex-quality gate --for-ai\n```\n\n금지 사항입니다.\n\n- secret, token, password, private key를 코드에 쓰지 않습니다.\n- `.env` 내용을 읽거나 문서에 붙이지 않습니다.\n- 인증과 권한 검사를 프론트에만 의존하지 않습니다.\n- 사용자 입력을 검증하지 않고 DB나 shell에 넘기지 않습니다.\n- CORS와 redirect 정책을 넓게 열지 않습니다.\n- 권한 변경, 결제, 배포 설정은 고위험 변경으로 취급합니다.\n\n## 신뢰 경계\n\n- `$codex-*` shortcut은 `.codex/script`의 allow-list script만 실행합니다.\n- `.codex` 수정은 `$codex-edit-mode on` 상태에서만 수행합니다.\n- `codex_test_runner.py`는 신뢰된 `.codex/tests/test_*.py` 전용입니다.\n- 외부에서 받은 테스트 파일, fixture, generated artifact는 먼저 검토합니다.\n- 언어 전환은 `docs/`를 template에서 다시 렌더링하므로 template도 갱신합니다.\n\n## 완료 기준\n\n보안 이슈가 발견되면 TASK를 완료하지 않습니다.\nsecurity agent 또는 refactor agent가 별도 TASK로 수정해야 합니다.\n보안 검증 결과와 남은 위험은 완료 보고에 포함합니다.\n"}, {"id": "scripts-implementation", "title": "코드 구현 설명", "text": "# 코드 구현 설명\n\n핵심 구현은 작은 Python 스크립트로 나뉩니다.\n각 파일은 200줄 이하를 목표로 합니다.\n\ncodex_state.py는 workflow 디렉터리를 만들고 TASK를 관리합니다.\ncodex_trace_view.py는 JSONL을 읽어 TASKS.md를 다시 렌더링합니다.\ncodex_task_git.py는 git commit을 만들고 TASK와 연결합니다.\ncodex_lanes.py는 worktree와 병렬 실행 CSV를 만듭니다.\ncodex_quality.py는 변경 파일을 스캔해 품질 위험을 JSON으로 출력합니다.\ncodex_shortcuts.py는 $codex-* 프롬프트를 스크립트 실행으로 바꿉니다.\ncodex_wiki.py는 docs Markdown을 검색 가능한 index.html로 합칩니다.\n\nhook 흐름입니다.\n\n```text\nUserPromptSubmit\n  -> dispatch.py\n  -> codex_shortcuts.py\n  -> 해당 script 실행\n  -> decision:block 반환\n```\n\n이렇게 하면 상태 명령이 모델 토큰을 쓰지 않습니다.\n"}, {"id": "scripts-index", "title": "script 설명", "text": "# script 설명\n\n.codex/script 안의 Python 파일은 토큰 절약을 위한 실행 단위입니다.\n\nAI가 긴 문서를 읽고 쓰는 대신 script가 상태를 계산합니다.\n\n## 핵심 script\n\n```text\ncodex_state.py       workflow, TASK, VERSION 상태 관리\ncodex_task_git.py    TASK와 commit 연결, diff, revert\ncodex_lanes.py       MAW 병렬 lane과 worktree 관리\ncodex_pipeline.py    ready queue와 downstream agent pipeline 관리\ncodex_waves.py       MAW lane을 실행 wave로 분할\ncodex_work_items.py  요구사항을 기능 TASK로 분해\ncodex_design_gate.py 제품 유형, platform, framework, stack 계약 분류\ncodex_saw.py         SAW micro workflow 생성\ncodex_verify.py      SAW/TASK 완료 전 최소 검증\ncodex_test_runner.py .codex 내부 테스트 전용 no-dependency runner\ncodex_quality.py     코드 품질, 프론트 TSX, 중복 검사\ncodex_security.py    secret, token, private key 검사\ncodex_refactor.py    리팩토링 필요 여부 분석\ncodex_wiki.py        docs/index.html 생성\ncodex_language.py    ko/en 문서와 skill 렌더링\ncodex_shortcuts.py   $codex-* shortcut 실행\n```\n\n## codex_pipeline.py\n\n구현, test, QA, refactor, security lane의 ready 상태를 계산합니다.\n\n```text\n$codex-pipeline status --for-ai\n$codex-pipeline ready --for-ai\n$codex-pipeline prepare\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\nready lane만 subagent batch로 실행합니다.\n\n## codex_waves.py\n\n대형 MAW 작업을 전체 크기로 막지 않고 wave로 나눕니다.\n\n```text\n$codex-waves assign\n$codex-waves plan\n$codex-waves next\n$codex-waves prompt --wave W002\n```\n\n한 wave만 준비하고 실행합니다.\n\n```text\n$codex-lanes prepare --wave W002\n$codex-lanes csv --wave W002\n$codex-lanes prompt --wave W002\n```\n\n## codex_verify.py\n\nSAW는 검증을 생략하지 않습니다.\n\n검증 범위만 줄입니다.\n\n```text\n$codex-verify gate --for-ai\n$codex-verify gate --staged --for-ai\n```\n\n검사 순서는 아래입니다.\n\n```text\nbudget gate\nquality gate\nsecurity gate\nchanged-code test command\n```\n\n문서만 변경되면 test는 생략됩니다.\n\n코드가 변경되면 test command가 필요합니다. 기본 검증은 modified 파일과\nuntracked 신규 파일을 함께 봅니다. `.codex` 내부 Python 변경은 내부 테스트\nrunner를 자동으로 실행합니다.\n\n명령은 `.codex/state/verify.json`에 넣을 수 있습니다.\n\n```json\n{\n  \"commands\": [\"npm run test\", \"npm run typecheck\"]\n}\n```\n\n명령이 없으면 package.json, pytest, Gradle, Maven을 일부 탐지합니다.\n\n그래도 없으면 gate는 실패합니다.\n\n`codex"}, {"id": "scripts-risk-context-budget", "title": "risk, context, budget", "text": "# risk, context, budget\n\n이 문서는 토큰 절약과 안전한 workflow 선택을 설명합니다.\n\n## 원칙\n\nAI가 전체 저장소를 먼저 읽지 않습니다.\n먼저 script가 위험도와 필요한 context를 짧게 계산합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-context pack --for-ai\n$codex-budget status\n```\n\n## $codex-budget\n\nSAW budget은 작은 패치 상한입니다.\n\nMAW budget은 전체 epic 상한이 아닙니다.\n\nMAW에서는 lane, wave, PR/MR 단위로 예산을 적용합니다.\n\n```text\n$codex-budget suggest --text \"order payment 구현\" --for-ai\n$codex-budget gate --staged --mode maw --for-ai\n$codex-waves plan\n```\n\n## wave 실행\n\n대형 작업은 wave로 나눕니다.\n\n```text\n$codex-waves assign\n$codex-waves next\n$codex-lanes list --wave W001\n$codex-lanes csv --wave W001\n$codex-lanes prompt --wave W001\n```\n\nW001을 검증하고 병합한 뒤 W002로 넘어갑니다.\n\n## 권장 루프\n\nSAW는 아래 순서로 사용합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-saw init ...\n$codex-context pack --for-ai\n작은 수정\n$codex-verify gate --staged --mode saw --for-ai\n$codex-task commit T001 --message \"message\"\n```\n\nMAW는 아래 순서로 사용합니다.\n\n```text\n$codex-risk classify --text \"요청\" --for-ai\n$codex-state init --workflow maw ...\n$codex-work-items apply ...\n$codex-waves plan\n$codex-lanes csv --wave W001\n```\n"}, {"id": "scripts-shortcuts", "title": "shortcut 명령", "text": "# shortcut 명령\n\n$codex-* 명령은 UserPromptSubmit hook에서 처리합니다.\n\n모델로 전달되지 않으므로 상태 조회와 자동 처리 토큰을 줄입니다.\n\n## SAW\n\nSAW는 초저토큰 단일 작업 모드입니다.\n\n```text\n$codex-saw suggest --text \"fix dto mapping\"\n$codex-saw init --title dto-fix --branch hotfix/dto-fix --text \"fix dto\"\n$codex-saw prompt\n$codex-saw gate\n$codex-task commit T001 --message \"fix dto mapping\"\n```\n\n필요할 때만 후속 TASK를 만듭니다.\n\n```text\n$codex-saw followup --kind test --title \"missing regression test\"\n$codex-saw followup --kind refactor --title \"duplicate cleanup\"\n$codex-saw followup --kind security --title \"auth rule check\"\n```\n\n## MAW\n\n```text\n$codex-work-items apply --text \"shop order payment\" --agents backend,test,qa\n$codex-pipeline ready --for-ai\n$codex-pipeline prepare\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\n## 상태와 추적\n\n```text\n$codex-state summary --for-ai\n$codex-task trace --for-ai\n$codex-task files T001\n$codex-task diff T001 --name-status\n```\n\n## 품질과 보안\n\n```text\n$codex-quality gate --for-ai\n$codex-quality frontend --for-ai\n$codex-refactor analyze --for-ai\n$codex-security gate\n```\n\n## 언어와 wiki\n\n```text\n$codex-language ko\n$codex-language en\n$codex-wiki build\n```\n\n\n## capability\n\n```text\n$codex-capabilities inspect --text \"요청\" --agents \"name\" --skills \"name\"\n```\n"}, {"id": "scripts-state-files", "title": "상태 파일 구현", "text": "# 상태 파일 구현\n\n.codex-state 아래 파일은 스크립트가 읽는 원본 상태입니다.\n\n- state.json: workflow, branch, phase, version 정보\n- tasks.jsonl: TASK 목록과 상태\n- lanes.jsonl: 병렬 lane, worktree, branch, deps 정보\n- commits.jsonl: TASK, lane, commit, 변경 파일 연결\n- events.jsonl: 시간순 이벤트 로그\n- TASKS.md: 사람이 보는 요약본\n\nTASKS.md는 원본이 아닙니다.\n스크립트가 JSONL을 읽고 매번 다시 생성합니다.\n\n이 구조 덕분에 AI가 긴 TASKS.md를 직접 편집하지 않아도 됩니다.\n완료 체크, commit 연결, 파일 변경 요약은 모두 스크립트가 처리합니다.\n"}, {"id": "skills-auto-selection", "title": "Skill 자동 선정", "text": "# Skill 자동 선정\n\nskill은 요청과 선택된 agent를 기준으로 자동 선정됩니다.\n모든 skill을 항상 읽지 않습니다.\n\n예를 들어 backend agent가 선택되고 요청에 JPA와 Swagger가 있으면\nspring-boot, jpa, api-contract, openapi-swagger가 선택됩니다.\n\nsecurity agent에는 spring-boot나 jpa를 붙이지 않습니다.\nsecurity-gate만 선택됩니다.\n\n확인 명령입니다.\n\n```text\n$codex-skills recommend --text \"spring boot order api swagger\" --agents backend,qa\n```\n\n사용자가 특정 skill을 빼라고 하면 그 지시를 우선합니다.\n예를 들어 JPA 대신 MyBatis를 쓰라고 하면 jpa skill은 사용하지 않습니다.\n"}, {"id": "skills-index", "title": "Skill 설명", "text": "# Skill 설명\n\nskill은 agent가 사용하는 반복 절차입니다.\nagent와 달리 병렬 실행 단위가 아닙니다.\n\n대표 skill입니다.\n\n- spring-boot: Spring Boot 서버 구현 절차\n- jpa: Entity, Repository, Transaction, Query 절차\n- api-contract: request, response, error 계약 정리\n- openapi-swagger: Swagger 또는 OpenAPI 문서화\n- frontend-component-architecture: 재사용 컴포넌트 설계\n- quality-gate: 대형 파일, 중복, 스파게티, 보안 흔적 검사\n- refactor-clean-code: 동작 보존 리팩토링 절차\n- security-gate: secret, token, 권한, 입력 검증 점검\n- task-trace: TASK, lane, commit 추적\n\nskill은 .codex/skills/{name}/SKILL.md에 있습니다.\nsetup_links.py는 .agents/skills를 .codex/skills로 연결합니다.\n"}, {"id": "troubleshooting", "title": "문제 해결", "text": "# 문제 해결\n\nhook이 실패하면 먼저 .codex/hooks/dispatch.py 경로를 확인합니다.\nGit 저장소가 아니면 아래 명령을 실행합니다.\n\n```text\n$codex-git doctor\n$codex-git ensure\n```\n\ndocs/index.html이 오래되었으면 다시 생성합니다.\n\n```text\n$codex-wiki build\n```\n\nTASKS.md 체크박스가 완료되지 않으면 아래를 확인합니다.\n\n- TASK status가 done인지 확인합니다.\n- commit이 TASK에 연결되었는지 확인합니다.\n- 해당 TASK의 모든 lane이 done 또는 merged인지 확인합니다.\n\n품질 gate가 실패하면 큰 파일, 중복, secret 흔적을 먼저 정리합니다.\n프론트 파일이 커졌다면 primitive, feature component, hook, api client로 나눕니다.\n"}, {"id": "workflows-agent-pipeline", "title": "Agent pipeline", "text": "# Agent pipeline\n\nAgent pipeline은 MAW의 핵심 실행 모델입니다.\n\n## 왜 필요한가\n\n단순 병렬은 구현 lane만 동시에 돌립니다.\n그러면 QA, refactor, security가 마지막에 한 번만 돌 수 있습니다.\n\nAgent pipeline은 각 구현 결과를 downstream agent가 바로 받습니다.\n\n```text\n구현/order done -> qa/order ready\n구현/payment running -> 계속 진행\n```\n\n## stage\n\n```text\nfoundation\nimplement\ntest\nqa\nrefactor\nsecurity\n```\n\n## dependency\n\n각 lane은 deps에 upstream lane id를 가집니다.\n\ndeps가 모두 done 또는 merged이면 ready가 됩니다.\n\n```text\n$codex-pipeline ready --for-ai\n```\n\n## worktree 준비\n\nready lane만 worktree를 만듭니다.\n\ndownstream lane은 가장 가까운 upstream branch에서 시작합니다.\n\n```text\n$codex-pipeline prepare\n```\n\n## CSV batch\n\n```text\n$codex-pipeline csv --ready\n$codex-pipeline prompt\n```\n\nCSV row 하나가 subagent worker 하나입니다.\n\n## 완료\n\n각 worker는 lane별 commit을 남깁니다.\n\n```text\n$codex-task commit T002 --lane L002 --message \"Order REST API\"\n```\n\n검증 lane이 코드 변경이 없으면 빈 commit으로 증거를 남깁니다.\n\n```text\n$codex-task commit T006 --lane L006 --message \"QA order\" --allow-empty\n```\n\n## 추적\n\nTASKS.md에는 stage, agent, wave, deps, commit이 표시됩니다.\n\n전체 diff는 문서에 넣지 않습니다.\n\n```text\n$codex-task diff T002 --name-status\n$codex-task files T002\n```\n"}, {"id": "workflows-event-driven-maw-v21", "title": "이벤트 기반 MAW", "text": "# 이벤트 기반 MAW\n\nMAW는 TASK 완료 이벤트를 기준으로 후속 agent를 선택합니다.\n\n구현 agent는 구현만 담당합니다.\n\n테스트 코드는 test_writer가 작성합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 변경 내용과 위험도에 따라 실행됩니다.\n\n모든 후속 agent가 항상 도는 것은 아닙니다.\n\n```text\ncode changed -> test_writer, test_runner\npublic API or large change -> qa\nlarge maintainability risk -> refactor\npayment, auth, token, secret -> security\n```\n\nTASK가 `[x]` 완료되면 event bus가 후속 lane을 만듭니다.\n\n후속 agent가 도는 동안 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\n구현/order 완료\n-> test_writer/order, qa/order 준비\n\n구현/payment 진행 중\n-> 계속 구현 가능\n```\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nworker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n"}, {"id": "workflows-event-driven-maw", "title": "이벤트 기반 MAW", "text": "# 이벤트 기반 MAW\n\nMAW는 TASK 완료 이벤트를 기준으로 후속 agent를 선택합니다.\n\n구현 agent는 구현만 담당합니다.\n\n테스트 코드는 test_writer가 작성합니다.\n\n테스트 실행은 test_runner가 담당합니다.\n\nQA, refactor, security는 변경 내용과 위험도에 따라 실행됩니다.\n\n모든 후속 agent가 항상 도는 것은 아닙니다.\n\n```text\ncode changed -> test_writer, test_runner\npublic API or large change -> qa\nlarge maintainability risk -> refactor\npayment, auth, token, secret -> security\n```\n\nTASK가 `[x]` 완료되면 event bus가 후속 lane을 만듭니다.\n\n후속 agent가 도는 동안 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\n구현/order 완료\n-> test_writer/order, qa/order 준비\n\n구현/payment 진행 중\n-> 계속 구현 가능\n```\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nworker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n\n## 구현 agent 일반화\n\n`backend`만 구현 agent가 아닙니다.\n\n아래 agent도 구현 producer가 될 수 있습니다.\n\n```text\nbackend, frontend, database, integration, devops, docs, performance\n```\n\nfeature 단위 구현 agent는 feature별 lane을 만듭니다.\n\n```text\nbackend/order\nfrontend/order\nintegration/payment\n```\n\nsingle 구현 agent는 프로젝트 단위 lane을 만듭니다.\n\n```text\ndevops/project\ndocs/project\nperformance/project\n```\n\n완료 이벤트는 `implement` stage 전체에 반응합니다.\n\n```text\n구현 TASK [x]\n-> 필요한 test_writer, test_runner, qa, refactor, security 생성\n```\n\n역할 구분은 아래 파일에서 조정합니다.\n\n```text\n.codex/state/agent_roles.json\n.codex/state/event_policy.json\n```\n"}, {"id": "workflows-implementation-agents", "title": "구현 agent 원칙", "text": "# 구현 agent 원칙\n\nMAW에서 `backend`는 예시일 뿐입니다.\n\n구현 agent는 자기 영역의 산출물을 만드는 agent입니다.\n\n기본 구현 agent는 다음과 같습니다.\n\n```text\nbackend\nfrontend\ndatabase\nintegration\ndevops\ndocs\nperformance\n```\n\ncustom agent도 `.codex/state/agent_roles.json`에 등록하면 구현 agent가 됩니다.\n\n구현 TASK가 `[x]` 완료되면 event bus가 후속 agent를 선택합니다.\n\n```text\n구현/order 완료\n-> 필요한 test_writer\n-> 필요한 test_runner\n-> 필요한 qa\n-> 필요한 refactor\n-> 필요한 security\n```\n\n그동안 다른 구현 agent는 다음 ready TASK를 계속 진행합니다.\n\n```text\nfrontend/order 검증 중\nbackend/payment 구현 진행\nintegration/webhook 구현 진행\n```\n\n후속 agent는 무조건 생성하지 않습니다.\n\n변경 파일, 위험도, feature, policy를 보고 필요한 agent만 생성합니다.\n"}, {"id": "workflows-maw", "title": "MAW 멀티 에이전트 파이프라인", "text": "# MAW 멀티 에이전트 파이프라인\n\n$maw는 큰 작업을 여러 feature lane으로 나누는 workflow입니다.\nagent 개수를 묻지 않고 추천 agent를 보여준 뒤 선택을 받습니다.\n\n## 핵심 개념\n\n```text\nagent = 역할\nskill = 작업 절차\nlane = 실제 병렬 실행 단위\nwave = 한 번에 실행하고 병합할 lane 묶음\npipeline = lane dependency graph\nepic = 전체 목표\n```\n\norder와 payment는 별도 lane입니다.\n\n```text\nT002 Order REST API   L002 backend implement\nT003 Payment REST API L003 backend implement\n```\n\n둘 다 backend agent를 쓰지만 서로 다른 worktree에서 실행합니다.\nSpring Boot, JPA, Swagger는 backend agent가 쓰는 skill입니다.\n\n## 진짜 멀티 에이전트 흐름\n\nMAW는 단순히 backend, qa, security를 순서대로 두지 않습니다.\n구현 task가 끝나면 그 task를 downstream agent가 받습니다.\n\n```text\nL002 backend order implement\n  -> L004 test order\n  -> L006 qa order\n  -> L008 refactor order\n  -> L010 security order\n\nL003 backend payment implement\n  -> L005 test payment\n  -> L007 qa payment\n  -> L009 refactor payment\n  -> L011 security payment\n```\n\n따라서 처음에는 backend/order와 backend/payment가 동시에 ready입니다.\norder가 먼저 끝나면 payment가 아직 실행 중이어도 order QA가 ready가 됩니다.\n\n## ready queue\n\n다음에 실행할 수 있는 lane만 봅니다.\n\n```text\n$codex-pipeline ready --for-ai\n```\n\nready lane만 worktree로 준비합니다.\n\n```text\n$codex-pipeline prepare\n```\n\nready lane만 CSV로 만듭니다.\n\n```text\n$codex-pipeline csv --ready\n```\n\nsubagent 실행 프롬프트를 만듭니다.\n\n```text\n$codex-pipeline prompt\n```\n\nCodex에서 CSV row마다 subagent 하나를 spawn합니다.\n\n## 실행 반복\n\n```text\n1. $codex-pipeline ready --for-ai\n2. $codex-pipeline prepare\n3. $codex-pipeline csv --ready\n4. Codex가 CSV row마다 subagent spawn\n5. 각 lane은 $codex-task commit 으로 완료\n6. 완료 lane을 root branch에 merge\n7. 다시 $codex-pipeline ready --for-ai\n```\n\n## /agent 와 agent 목록\n\n/agent 는 실행 중인 subagent thread를 전환하거나 보는 명령입니다.\n등록된 custom agent 목록이 안 보일 수 있습니다.\n\n등록된 agent 파일 목록은 아래로 봅니다.\n\n```text\n$codex-agents list\n$codex-agents check\n```\n\n## budget 기준\n\nMAW budget은 전체 epic 제한이 아닙니다.\n\n80개 파일이나 3000줄 제한은 한 wave 또는 PR/MR의 안전 상한입니다.\n전체 신규 구현이 이 값을 넘을 수 있습니다.\n\n이 경우 전체를 막지 않고 wave를 나눕니다.\n\n```text\nW001 contract, schema\nW002 order, payment backend implement\nW003 order, payment test and QA\nW004 refactor and securi"}, {"id": "workflows-quality-refactor-security", "title": "품질, 리팩토링, 보안 절차", "text": "# 품질, 리팩토링, 보안 절차\n\n모든 구현은 검증 없이 완료하지 않습니다.\n\nMAW와 SAW는 검증 방식이 다릅니다.\n\n## MAW 절차\n\nMAW는 큰 작업이므로 별도 TASK와 lane을 사용할 수 있습니다.\n\n```text\n구현 -> 테스트 -> QA -> 품질 gate -> 리팩토링 판단 -> 보안 gate -> 최종 리뷰\n```\n\nMAW의 기능 lane commit은 먼저 품질 gate를 통과해야 합니다.\n\n```text\n$codex-quality gate --staged --for-ai\n```\n\n테스트와 보안은 별도 test, qa, security TASK에서 다룰 수 있습니다.\n\n## SAW 절차\n\nSAW는 작은 작업이므로 별도 agent chain을 만들지 않습니다.\n\n하지만 테스트와 보안 검사는 생략하지 않습니다.\n\nSAW는 아래 하나의 gate로 검증합니다.\n\n```text\n$codex-verify gate --staged --for-ai\n```\n\n이 gate는 아래를 실행합니다.\n\n```text\nstaged budget gate\nstaged quality gate\nstaged security gate\nchanged-code targeted test\n```\n\n코드가 바뀌었는데 테스트 명령이 없으면 실패합니다.\n기본 검증은 modified 파일과 untracked 신규 파일을 함께 봅니다.\n\n테스트 명령은 아래 파일에 설정합니다.\n\n```text\n.codex/state/verify.json\n```\n\n## 리팩토링 판단\n\n리팩토링은 항상 동작 보존이어야 합니다.\n\n공개 API, DB 스키마, 인증 정책은 승인 없이 바꾸지 않습니다.\n\n필요 여부는 script로 먼저 확인합니다.\n\n```text\n$codex-refactor analyze --for-ai\n```\n\n## 보안 기준\n\n보안 gate는 secret, token, private key, password 흔적을 검사합니다.\n\n보안 이슈가 있으면 PR 또는 MR 준비 단계로 넘어가지 않습니다.\n"}, {"id": "workflows-saw", "title": "SAW 초저토큰 단일 워크플로우", "text": "# SAW 초저토큰 단일 워크플로우\n\n$saw는 작은 변경을 최소 컨텍스트로 끝내기 위한 모드입니다.\n\nv16부터 SAW는 검증을 생략하지 않습니다.\n\n차이는 검증을 agent chain으로 하지 않고 script gate로 한다는 점입니다.\n\n## 핵심 목적\n\n```text\nprimary agent 하나\nTASK 하나\n필요 skill만 자동 선택\nquality, test, security는 script gate\ncommit 하나로 완료 추적\n```\n\n## 검증 원칙\n\nSAW는 테스트와 보안 검사를 건너뛰지 않습니다.\n\n다만 아래처럼 범위를 줄입니다.\n\n```text\n문서만 변경: quality + security\n코드 변경: quality + test + security\n```\n\n코드가 바뀌었는데 test command가 없으면 gate는 실패합니다.\n\n이 경우 `.codex/state/verify.json`에 명령을 추가합니다.\n\n```json\n{\n  \"commands\": [\"npm run test\", \"npm run typecheck\"]\n}\n```\n\n## MAW와 차이\n\nMAW는 큰 작업을 기능 lane으로 분해합니다.\n\n```text\norder backend lane\npayment backend lane\nfrontend checkout lane\ntest lane\nsecurity lane\n```\n\nSAW는 그렇게 하지 않습니다.\n\n```text\nT001 dto mapping fix\nprimary agent: backend\nskills: spring-boot, api-contract, verify-gate\n```\n\n## 언제 SAW를 쓰나요?\n\n- 단일 버그 수정\n- DTO 필드 매핑 수정\n- 작은 API 응답 수정\n- 작은 컴포넌트 props 정리\n- 테스트 하나 보완\n- 문서 한 부분 수정\n- 파일 몇 개 안의 좁은 리팩토링\n\n기능이 둘 이상이면 MAW를 사용합니다.\n\n## 사용법\n\n계획만 봅니다.\n\n```text\n$codex-saw suggest --text \"주문 응답 DTO totalPrice 매핑 오류 수정\"\n```\n\nworkflow와 TASK 하나를 만듭니다.\n\n```text\n$codex-saw init --title dto-fix --branch hotfix/dto-fix --text \"dto 수정\"\n```\n\n다음 작업만 짧게 봅니다.\n\n```text\n$codex-saw prompt\n```\n\n작업 후 검증을 실행합니다.\n\n```text\n$codex-verify gate --for-ai\n```\n\n통과하면 commit으로 완료합니다.\n\n```text\n$codex-task commit T001 --message \"fix dto mapping\"\n```\n\ncommit 명령은 staged verify gate를 다시 실행합니다.\n\n## 후속 TASK\n\ngate가 실패하면 필요한 경우에만 후속 TASK를 만듭니다.\n\n```text\n$codex-saw followup --kind refactor --title \"duplicate cleanup\"\n$codex-saw followup --kind test --title \"missing regression test\"\n$codex-saw followup --kind security --title \"auth rule check\"\n```\n\n## 토큰 절약 원리\n\nSAW는 아래를 하지 않습니다.\n\n```text\n여러 agent chain 기본 생성 안 함\n여러 TASK 기본 생성 안 함\nlane, worktree, CSV 생성 안 함\n긴 TASKS.md 직접 판독 안 함\nQA agent에게 장문 판단을 맡기지 않음\n```\n\n대신 script 결과만 짧게 봅니다.\n\n```text\n$codex-state summary --for-ai\n$codex-saw prompt\n$codex-verify gate --for-ai\n$codex-task trace --for-ai\n```\n"}, {"id": "workflows-task-commit-trace", "title": "TASK, lane, commit 추적", "text": "# TASK, lane, commit 추적\n\nTASK는 완료 증거로 commit을 가져야 합니다.\ncommit message는 현재 언어 설정을 따르며 제목, body, footer를 모두 가집니다.\n\n제목은 conventional commit 형식입니다.\n\n```text\nfeat: 주문 생성 API 구현\n```\n\nbody는 변경 이유와 검증 근거를 짧게 남깁니다.\n\n```text\n목적: 주문 생성 API를 구현합니다.\n범위: TASK T002 / lane L002 / workflow maw\n완료 기준: 검증과 TASK 추적이 완료됩니다.\n검증: codex_verify gate --staged --mode maw\n```\n\nfooter는 Codex 추적 정보를 구조화해서 남깁니다.\n\n```text\nCodex-Task: T002\nCodex-Lane: L002\nCodex-Workflow: v1-shop\nCodex-Agent: backend\nCodex-Skills: spring-boot,jpa,openapi-swagger\nCodex-Verification: codex_verify gate --staged --mode maw\nCodex-Language: ko\n```\n\ncommit 후 스크립트는 commits.jsonl에 실제 commit hash와 변경 파일을 기록합니다.\nTASKS.md에는 A, M, D, R 요약만 표시합니다.\n전체 diff는 필요할 때만 스크립트로 봅니다.\n\n```text\n$codex-task files T002\n$codex-task diff T002 --name-status\n$codex-task revert-task T002\n```\n\nTASK 체크박스가 [x]가 되는 조건입니다.\n\n- TASK status가 done입니다.\n- 연결 commit이 하나 이상 있습니다.\n- 모든 lane이 done 또는 merged입니다.\n\n이 조건을 만족하지 않으면 TASKS.md는 [ ] 상태를 유지합니다.\n"}, {"id": "workflows-task-event-agents", "title": "TASK 완료 이벤트와 후속 agent", "text": "# TASK 완료 이벤트와 후속 agent\n\nMAW는 모든 agent를 한 번에 고정 실행하지 않습니다.\n\nTASK가 commit과 연결되어 `[x]`가 되면 이벤트가 발생합니다.\n\n그 이벤트가 필요한 후속 agent만 생성합니다.\n\n예:\n\n```text\n구현/order 완료\n-> test_writer/order\n-> test_runner/order\n-> qa/order\n-> 필요 시 refactor/order\n-> 필요 시 security/order\n```\n\npayment가 아직 진행 중이어도 order 검증은 시작할 수 있습니다.\n\n구현 agent는 다음 ready 구현 TASK를 계속 진행합니다.\n\n후속 agent는 자신의 역할만 수행합니다.\n\ntest_writer는 테스트 코드를 작성하지만 실행하지 않습니다.\n\ntest_runner는 테스트를 실행하지만 제품 코드를 구현하지 않습니다.\n\nqa는 사용자 흐름과 회귀 위험을 검토합니다.\n\nrefactor는 동작 보존 리팩토링만 수행합니다.\n\nsecurity는 보안 위험만 검토합니다.\n\nready queue 확인:\n\n```text\n$codex-pipeline ready --for-ai\n```\n\n후속 worker 확인:\n\n```text\n$codex-events workers --for-ai\n```\n"}, {"id": "workflows-token-budget", "title": "토큰 예산과 wave budget", "text": "# 토큰 예산과 wave budget\n\nSAW는 작은 패치 전용입니다.\n\n변경 파일, 코드 파일, 변경 줄 수가 예산을 넘으면 SAW를 멈춥니다.\n이때 MAW 또는 follow-up TASK로 분리합니다.\n\nMAW는 다릅니다.\n\nMAW budget은 전체 신규 구현의 총량 상한이 아닙니다.\n\n```text\n전체 epic은 80개 파일이나 3000줄을 넘을 수 있습니다.\n단, 한 lane과 한 wave는 예산 안에 들어와야 합니다.\n```\n\n기본 기준입니다.\n\n```text\nlane: 30 files, 900 changed lines\nwave: 6 lanes, 80 files, 3000 changed lines\n```\n\n전체가 크면 wave를 나눕니다.\n\n```text\nW001 contract, schema\nW002 order, payment, member backend\nW003 product, cart, coupon backend\nW004 frontend screens\nW005 test, QA, quality, security\n```\n\n확인 명령입니다.\n\n```text\n$codex-budget status\n$codex-budget suggest --text \"order payment rest api\" --for-ai\n$codex-waves plan\n$codex-waves next\n```\n\n특정 wave만 준비하고 실행합니다.\n\n```text\n$codex-lanes prepare --wave W002\n$codex-lanes csv --wave W002\n$codex-lanes prompt --wave W002\n```\n\n한 lane이 너무 커지면 기능을 더 나눕니다.\n\n```text\norder 전체 -> order create, order read, order state, order cancel\npayment 전체 -> payment request, payment callback, payment refund\n```\n\nAI가 전체 저장소를 읽기 전에는 context pack을 먼저 봅니다.\n\n```text\n$codex-context pack --for-ai\n$codex-context pack --task T001 --for-ai\n```\n\n전체 diff나 전체 파일 읽기는 마지막 수단입니다.\n"}, {"id": "workflows-token-context", "title": "토큰 최적화와 컨텍스트 관리", "text": "# 토큰 최적화와 컨텍스트 관리\n\nAI가 긴 문서를 직접 읽어 판단하지 않게 합니다.\n\n상태, 진행률, 변경 파일, commit 연결은 script가 계산합니다.\n\nAI는 짧은 JSON 요약만 보고 다음 작업을 결정합니다.\n\n## 기본 명령\n\n```text\n$codex-context pack --for-ai\n$codex-task trace --for-ai\n$codex-state summary --for-ai\n```\n\n## SAW 제한\n\nSAW는 micro patch입니다.\n\n기본 제한은 작은 파일 수와 작은 변경 줄 수입니다.\n\n제한을 넘으면 MAW로 전환합니다.\n\n## MAW wave 제한\n\nMAW는 전체 epic이 커도 됩니다.\n\n다만 한 lane과 한 wave는 budget 안에 들어와야 합니다.\n\n```text\n$codex-lanes csv --wave W001\n$codex-verify gate --staged --mode maw --for-ai\n```\n\n## 읽기 규칙\n\nTASKS.md 전체를 매번 읽지 않습니다.\n\n전체 git log를 매번 읽지 않습니다.\n\n전체 diff는 사용자가 요청하거나 gate 실패 때만 봅니다.\n"}];
 const q = document.getElementById('q');
 const links = [...document.querySelectorAll('aside a')];
 const articles = [...document.querySelectorAll('article')];

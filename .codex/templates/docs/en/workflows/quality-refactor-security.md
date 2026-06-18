@@ -41,6 +41,7 @@ staged security gate
 ```
 
 If code changed and no test command exists, the gate fails.
+Default verification includes modified files and new untracked files.
 
 Configure test commands here.
 

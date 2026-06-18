@@ -25,8 +25,13 @@ $codex-edit-mode off
 
 ```text
 $codex-agents check
-$codex-quality gate --all --for-ai
+$codex-quality gate --all --include-codex --max-lines 500 --for-ai
+$codex-verify gate --for-ai
 $codex-wiki build
 ```
 
 - extension-governance: agent와 skill 생성 gate입니다.
+
+
+문서를 추가하거나 수정하면 `docs/` 원본과 `.codex/templates/docs/ko,en`을
+같이 갱신합니다. 언어 전환은 template에서 `docs/`를 다시 렌더링합니다.
