@@ -34,6 +34,17 @@ commit 전 $codex-quality gate --staged --for-ai 를 통과해야 합니다.
 보안 검사는 마지막에 반드시 수행합니다.
 secret, token, private key는 절대 생성하거나 노출하지 않습니다.
 
+## Git/PR 정책
+
+작업 commit에는 PR 번호를 강제하지 않습니다.
+PR 번호는 PR 생성 후 확정되므로 작업 commit 수정을 유도하지 않습니다.
+PR 제목은 conventional commit 형식을 사용합니다.
+PR 본문은 Why, What Changed, Verification, Risk and Rollback을 포함합니다.
+리뷰 초점이 필요하면 Review Guide를 추가합니다.
+기본 merge 전략은 squash merge입니다.
+최종 squash merge commit 제목 끝에는 `(#번호)` 형식으로 PR 번호를 남깁니다.
+일반 merge나 rebase merge가 필요하면 PR 번호 추적 방식 변경을 먼저 확인합니다.
+
 ## SAW 검증 규칙
 
 SAW는 검증을 생략하지 않습니다.
