@@ -56,8 +56,9 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Su
 `subagent.auto=true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 사용하지 않는다. 예외는 상태 조회와 shortcut만 허용한다. 예: `git status`, `git diff`, `$pogo-settings`, `$pogo-subagent-auto` 조회.
 `subagent.auto=true`이면 git 상태 확인, commit, push, PR, merge, release 작업은 `pogo-git-agent`에 우선 위임하고, 메인 에이전트는 결정과 최종 보고만 담당한다.
 `subagent.auto=true`이면 `pogo`와 `pogo-subagent-auto` 기준을 따른다.
+`subagent.auto=true`이면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 Subagent의 `summary`, `changed_files`, `evidence`, `risks`만 소비하고, 원시 로그와 전체 diff는 사용자 요청, 실패, 불일치, 보안/데이터 손실 위험이 있을 때만 좁게 재확인한다.
 재사용 agent 정의와 모델 설정은 `.codex/agents/*.toml`을 따른다.
-Subagent 원시 로그를 그대로 붙이지 말고 결정, 변경 범위, 검증 증거, 남은 위험만 요약한다.
+Subagent 결과는 `summary` 3줄 이하, `changed_files`, `evidence`, `risks` 3개 이하로 요약한다. 여러 Subagent 결과를 병합할 때도 메인은 결론, 충돌 여부, 다음 조치만 정리한다.
 
 ## Git
 

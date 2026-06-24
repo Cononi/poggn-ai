@@ -45,6 +45,8 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 - 단, `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
 - subagent auto가 켜져 있으면 메인 에이전트는 구현 전 최소 1개 이상의 관련 Subagent를 시작해야 하며, 분리 가능한 탐색/구현/검증은 병렬로 진행한다.
 - subagent auto가 켜져 있으면 git 상태 확인, commit, push, PR, merge, release 같은 Git 실행 작업은 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 승인 범위, 보호 규칙 우회 여부, 최종 보고만 판단한다.
+- subagent auto가 켜져 있으면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 원시 로그, 전체 diff, tool trace를 기본 재열람하지 않고 Subagent의 `summary`, `changed_files`, `evidence`, `risks`만 소비한다.
+- Thin Mode에서 원시 로그나 전체 diff 재확인은 사용자 요청, 실패, Subagent 간 불일치, 보안/데이터 손실 위험이 있을 때만 해당 파일/명령으로 좁게 수행한다.
 - `pogo-git-agent`가 Git 작업을 처리해도 `git commit/push/merge` 사전 hook은 `pogo-verifier` 또는 `pogo-tester`의 PASS evidence를 요구한다.
 - hook은 Subagent 도구를 직접 실행하지 않는다. hook은 `$pogo-subagent-auto` shortcut을 `decision: block`으로 처리해 상태 변경/출력을 담당한다. `subagent.auto=true`이면 git commit/push/merge 전에 `.codex/state/subagent-evidence.json`의 PASS 증거를 요구한다.
 - `$pogo-subagent-auto`, `$pogo-settings` 같은 hook shortcut이나 단순 상태 출력처럼 Subagent가 실질 작업 단위를 가질 수 없는 경우만 예외로 둔다.
@@ -88,8 +90,9 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 7. 95 이상이고 리팩터링 필요성이 확인된 경우에만 `pogo-refactorer`에게 최소 파일 목록, 리팩터링 목적, 보존해야 할 동작을 전달한다.
 8. 최종 단계는 `pogo-tester`에게 넘긴다. 메인은 기능 요약, 변경 파일, 테스트 초점, 관련 테스트 경로만 간결하게 전달한다.
 9. 테스트 코드 작성과 테스트 실행은 `pogo-tester`가 수행한다.
-10. Subagents의 원시 로그를 메인 흐름에 그대로 붙이지 말고, 필요한 근거와 결론만 요약한다.
-11. `subagent.auto=true`에서 작업을 완료하려면 `.codex/state/subagent-evidence.json`에 현재 branch, HEAD, 변경 파일 목록, `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과를 남긴다. evidence는 현재 git 상태와 일치해야 하며, 24시간 이상이면 stale로 보고 삭제 후 다시 생성한다.
+10. Subagents는 `summary` 3줄 이하, `changed_files`, `evidence`, `risks` 3개 이하로 반환한다. 원시 로그, 전체 diff, 장문 분석은 기본 반환하지 않는다.
+11. 메인 에이전트는 여러 Subagent 결과를 병합할 때 결론, 충돌 여부, 다음 조치만 요약한다. 세부 로그는 실패/불일치/사용자 요청이 있을 때만 좁게 요청한다.
+12. `subagent.auto=true`에서 작업을 완료하려면 `.codex/state/subagent-evidence.json`에 현재 branch, HEAD, 변경 파일 목록, `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과를 남긴다. evidence는 현재 git 상태와 일치해야 하며, 24시간 이상이면 stale로 보고 삭제 후 다시 생성한다.
 
 ## 5. 기존 코드를 수정할 때
 

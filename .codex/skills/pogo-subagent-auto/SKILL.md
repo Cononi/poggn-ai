@@ -34,6 +34,13 @@ When `.codex/state/pogo-settings.json` has `subagent.auto=true`:
 2. `pogo-verifier` or `pogo-tester` must produce PASS evidence before completion.
 3. Before git `commit`, `push`, or `merge`, the hook requires `.codex/state/subagent-evidence.json`.
 
+Thin Mode rules:
+
+- Main orchestrator consumes only `summary`, `changed_files`, `evidence`, and `risks` from Subagent results by default.
+- Subagent `summary` is 3 lines or less, `risks` is 3 bullets or less, and `evidence` is command/status proof instead of raw logs.
+- Raw logs, full diffs, and tool traces are requested only for user request, failure, Subagent disagreement, or security/data-loss risk.
+- `.codex/state/subagent-evidence.json` stores status fields only. Do not store logs, diffs, prompts, or long analysis in evidence.
+
 Evidence contract:
 
 ```json
