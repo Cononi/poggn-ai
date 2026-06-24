@@ -50,63 +50,52 @@ PR 제목에는 PR 번호를 강제하지 않는다. PR 번호는 provider가 PR
 feat(user): add registration endpoint
 ```
 
-## PR 본문 템플릿
+## PR 본문 원칙
+
+PR 본문은 리뷰어가 의도, 변경, 검증, rollback 기준을 빠르게 판단할 수 있을 만큼만 작성한다.
+작은 변경(T0)은 기본 템플릿만 사용한다.
+고위험 변경, API/데이터/보안/migration 영향, 긴 리뷰가 필요한 변경만 확장 템플릿을 추가한다.
+
+## 기본 템플릿
 
 ```md
-## Why
+## Summary
 
-- Issue:
-- Spec:
-- 해결하는 문제:
-
-## What Changed
-
-- 실제 동작 변경
-- 주요 코드 또는 계약 경로
-
-## Scope
-
-### Included
-
-- 이번 PR에 포함된 내용
-
-### Excluded
-
-- 의도적으로 제외한 내용
-
-## Verification
-
-| Check | Command | Result |
-|---|---|---|
-| Unit / Integration | `...` | PASS / FAILED / PARTIAL / NOT RUN |
-| Lint / Build | `...` | PASS / FAILED / PARTIAL / NOT RUN |
-| Manual / Contract | `...` | PASS / FAILED / PARTIAL / NOT RUN |
-
-## Acceptance Criteria
-
-- [ ] AC-001
-- [ ] AC-002
-- [ ] INV-001
-
-## Risk and Rollback
-
-- Risk:
-- Rollback:
-- Remaining uncertainty:
-
-## Review Guide
-
-- 중점 확인:
-- 의도적으로 제외한 범위:
-- 특히 불안한 부분:
-
-## Release Note
-
-- 사용자 또는 운영자에게 보이는 변경
-- 추가/변경/제거/수정 사항을 구분
-- 검증 결과와 롤백 기준
-- 외부 동작 변화가 없으면 `N/A — 외부 동작 변화 없음`
+- Why:
+- What:
+- Verify:
+- Risk/Rollback:
 ```
+
+작성 기준:
+
+- `Why`: 왜 필요한지 한 줄로 쓴다. Issue나 Spec이 있으면 번호 또는 링크만 붙인다.
+- `What`: 실제 변경된 동작이나 문서/설정 경로를 한 줄로 쓴다.
+- `Verify`: 실행한 검증과 결과를 한 줄로 쓴다. 예: `git diff --check` - PASS
+- `Risk/Rollback`: 남은 위험과 되돌릴 방법을 한 줄로 쓴다. 위험이 낮으면 `낮음 / revert PR`.
+
+## 확장 템플릿
+
+필요할 때만 기본 템플릿 아래에 추가한다.
+
+```md
+## Details
+
+- Scope:
+- Excluded:
+- Acceptance:
+- Migration:
+- Review:
+- Release:
+```
+
+확장 기준:
+
+- T0 문서, 설정, 좁은 수정: 기본 템플릿만 사용한다.
+- T1 기능, 버그, UX/API 변경: reviewer가 바로 판단하기 어렵다면 `Details`를 추가한다.
+- T2 고위험, migration, 보안, 데이터, 호환성 변경: `Details`를 추가하고 rollback 기준을 구체화한다.
+- 검증이 여러 개면 표를 사용할 수 있지만, 한두 개면 한 줄 목록을 우선한다.
+- 외부 동작 변화가 없으면 Release 항목은 생략한다.
 
 ## GitHub Release
 

@@ -64,7 +64,10 @@
 
 Git 식별자는 언어 모드와 분리한다. `lang=ko`여도 branch, tag, commit type/scope, version은 ASCII/영어 관례를 유지하고, commit body, PR 본문, release note 같은 설명문만 한국어로 작성할 수 있다.
 
-작업 commit에는 PR 번호를 강제하지 않는다. PR 번호는 PR 생성 후 확정되므로 최종 squash merge commit 끝에 `(#번호)` 형식으로 남긴다. PR 본문은 `Why`, `What Changed`, `Verification`, `Risk and Rollback`을 기본으로 작성하고, 리뷰 초점이 필요하면 `Review Guide`를 추가한다.
+작업 commit에는 PR 번호를 강제하지 않는다. PR 번호는 PR 생성 후 확정되므로 최종 squash merge commit 끝에 `(#번호)` 형식으로 남긴다.
+작은 PR 본문은 `Summary` 4줄만 기본으로 작성한다.
+항목은 `Why`, `What`, `Verify`, `Risk/Rollback`이다.
+고위험, migration, API/데이터/보안 변경일 때만 세부 섹션을 추가한다.
 
 버전 관리는 프로젝트별 버전을 기본 정책으로 한다. 단일 프로젝트도 같은 정책을 사용하며, tag는 `<project>-v<semver>` 형식을 쓴다. 예: `web-v1.2.0`, `api-v2.0.3`, `app-v0.4.1`. Git tag는 repo commit을 가리키지만, 최신 tag, version source, release note, rollback 기준은 project 단위로 해석한다.
 
