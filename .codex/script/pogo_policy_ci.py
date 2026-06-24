@@ -68,6 +68,44 @@ def check_no_committed_local_evidence() -> None:
         raise ValueError(".codex/state/subagent-evidence.json must stay local and untracked")
 
 
+def check_project_map() -> None:
+    path = ROOT / ".codex" / "project-map.json"
+    if not path.exists():
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("version") != 1:
+        raise ValueError("project-map version must be 1")
+    projects = data.get("projects")
+    if not isinstance(projects, list):
+        raise ValueError("project-map projects must be a list")
+    names: set[str] = set()
+    for project in projects:
+        if not isinstance(project, dict):
+            raise ValueError("project-map project entries must be objects")
+        name = project.get("name")
+        if not isinstance(name, str) or not name or name in names:
+            raise ValueError("project-map project names must be unique non-empty strings")
+        names.add(name)
+        paths = project.get("paths", project.get("path"))
+        if isinstance(paths, str):
+            paths = [paths]
+        if not isinstance(paths, list) or not paths:
+            raise ValueError(f"project-map {name}.paths must be a non-empty list")
+        for item in paths:
+            if not isinstance(item, str) or not item or item.startswith("/") or ".." in Path(item).parts:
+                raise ValueError(f"project-map {name}.paths contains an invalid path")
+        version_source = project.get("versionSource")
+        if version_source is not None and (
+            not isinstance(version_source, str)
+            or not version_source
+            or version_source.startswith("/")
+            or ".." in Path(version_source).parts
+        ):
+            raise ValueError(f"project-map {name}.versionSource is invalid")
+        if "release" in project and not isinstance(project["release"], bool):
+            raise ValueError(f"project-map {name}.release must be true or false")
+
+
 def estimate_tokens(text: str) -> int:
     return max(1, round(len(text) / 4))
 
@@ -99,6 +137,7 @@ def main() -> int:
         check_toml()
         check_settings_json()
         check_no_committed_local_evidence()
+        check_project_map()
     except Exception as exc:
         return fail(str(exc))
     token_report()

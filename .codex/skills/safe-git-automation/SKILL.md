@@ -202,7 +202,9 @@ release는 GitHub Releases 페이지에 추적 가능한 기록으로 남긴다.
 
 버전 관리는 프로젝트별 버전을 기본 정책으로 한다. 단일 프로젝트도 같은 정책을 사용한다. tag는 `<project>-v<semver>` 형식을 쓰며, 예시는 `web-v1.2.0`, `api-v2.0.3`, `app-v0.4.1`이다. Git tag 자체는 repo commit을 가리키지만 최신 tag, version source, release note, rollback 기준은 project 단위로 판단한다.
 
-프로젝트별 version source는 해당 project path 안에서 우선 확인한다. 지원 기준은 `package.json`, `VERSION`, `version.json`, `build.gradle`, `build.gradle.kts`, `gradle.properties`, `pom.xml`이다.
+다중 프로젝트 repo는 `.codex/project-map.json`으로 release 단위를 정의한다. 각 project는 `name`, `paths`, `versionSource`, `release`를 가진다. merge 후 `.codex/script/pogo_release.py impacted --from <base> --to <target>`로 변경 파일이 어느 project에 속하는지 확인한다. 여러 release project가 바뀌면 project별 tag와 GitHub Release를 각각 만든다. `release=false` project만 바뀌었거나 project 판별이 안 되면 release를 만들지 않고 사유를 보고한다.
+
+프로젝트별 version source는 project map의 `versionSource`를 우선하고, 없으면 해당 project path 안에서 확인한다. 지원 기준은 `package.json`, `VERSION`, `version.json`, `build.gradle`, `build.gradle.kts`, `gradle.properties`, `pom.xml`이다.
 
 권장 순서:
 
