@@ -22,7 +22,7 @@ COMMANDS = """  $pogo-settings
   $pogo-settings git commit on|off|once
   $pogo-settings git push on|off|once
   $pogo-settings git merge on|off|once
-  $pogo-settings git all off|once
+  $pogo-settings git all on|off|once
   $pogo-settings lang status
   $pogo-settings lang ko|en|bilingual
   $pogo-settings subagent status
@@ -113,9 +113,10 @@ def set_git(target: str, value: str) -> int:
 
 def set_git_all(value: str) -> int:
     state = load_state()
-    if value == "off":
+    if value in VALID_VALUES:
+        enabled = VALID_VALUES[value]
         for target in VALID_GIT_TARGETS:
-            state["gitAutomation"][target] = False
+            state["gitAutomation"][target] = enabled
             state["gitAllowOnce"][target] = False
     elif value == "once":
         for target in VALID_GIT_TARGETS:

@@ -34,7 +34,7 @@ $pogo-settings git status
 $pogo-settings git commit on|off|once
 $pogo-settings git push on|off|once
 $pogo-settings git merge on|off|once
-$pogo-settings git all off|once
+$pogo-settings git all on|off|once
 $pogo-settings lang status
 $pogo-settings lang ko|en|bilingual
 $pogo-settings subagent status
