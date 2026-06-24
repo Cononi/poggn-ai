@@ -11,6 +11,7 @@ metadata:
 
 사용자 변경을 잃거나 섞지 않고 Git 작업을 재현 가능하게 수행한다.
 로컬 커밋, 원격 게시, PR, 병합을 서로 다른 권한 단계로 취급한다.
+`subagent.auto=true`이면 실행 가능한 Git 작업은 `pogo-git-agent`에 우선 위임해 메인 컨텍스트 토큰 사용을 줄인다.
 
 ## 사용 시점
 
@@ -48,6 +49,14 @@ metadata:
 
 merge, tag, release, 배포 트리거는 사용자가 명시적으로 요청했을 때만 수행한다.
 필수 검증이나 보호 규칙을 우회하지 않는다.
+
+## Git Subagent 라우팅
+
+`subagent.auto=true`이면 메인 에이전트는 git 상태 확인, staging 검토, commit, push, PR, merge, release 점검을 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 사용자 승인 범위, 보호 규칙 우회 여부, 실패/차단 판단, 최종 보고만 책임진다.
+
+Hook 강제는 `commit/push/merge`에만 적용된다. PR 생성과 release 점검은 정책상 `pogo-git-agent` 우선 위임 대상이며, 수동 위임 결과와 증빙 요약으로 보완한다.
+
+예외는 단순히 한 줄 명령 출력을 확인하는 상태 조회, `$pogo-settings` shortcut 처리, 또는 Subagent를 사용할 수 없는 환경이다. 예외를 쓰면 이유를 보고한다.
 
 ## 핵심 안전 규칙
 

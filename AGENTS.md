@@ -35,7 +35,7 @@
 
 - 기본 작업 판단과 단순 구현: `pogo`.
 - 요구사항, acceptance criteria, 고위험 기능/API/데이터/보안 변경: `evidence-driven-sdd`.
-- 브랜치, worktree, commit, push, PR, merge, release: `safe-git-automation`.
+- 브랜치, worktree, commit, push, PR, merge, release: `safe-git-automation`; Subagents 사용 시 `pogo-git-agent`에게 실행 위임.
 - `$pogo-settings`, git 자동화 상태, lang, hook/script 설정: `pogo-settings`.
 - `$pogo-subagent-auto`, SubAgent 강제, evidence, commit/push/merge 차단: `pogo-subagent-auto`.
 - 구조/경계/contract: `architecture`.
@@ -53,13 +53,15 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Su
 코드 수정, 버그 수정, 기능 개발, 리팩터링, 테스트, QA, 보안/아키텍처 판단은 Subagents 사용을 먼저 고려한다.
 단순 질문, 명령 출력 확인, 문서 한두 줄, 명확한 단일 파일 T0 변경은 Single Agent 예외가 가능하다.
 
+`subagent.auto=true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 사용하지 않는다. 예외는 상태 조회와 shortcut만 허용한다. 예: `git status`, `git diff`, `$pogo-settings`, `$pogo-subagent-auto` 조회.
+`subagent.auto=true`이면 git 상태 확인, commit, push, PR, merge, release 작업은 `pogo-git-agent`에 우선 위임하고, 메인 에이전트는 결정과 최종 보고만 담당한다.
 `subagent.auto=true`이면 `pogo`와 `pogo-subagent-auto` 기준을 따른다.
 재사용 agent 정의와 모델 설정은 `.codex/agents/*.toml`을 따른다.
 Subagent 원시 로그를 그대로 붙이지 말고 결정, 변경 범위, 검증 증거, 남은 위험만 요약한다.
 
 ## Git
 
-Git 작업은 `pogo-settings`와 `safe-git-automation`을 따른다.
+Git 작업은 `pogo-settings`와 `safe-git-automation`을 따른다. `subagent.auto=true`이면 git 실행과 상태 확인은 `pogo-git-agent`에게 우선 위임한다.
 
 - `.codex/state/pogo-settings.json`의 `gitAutomation` 값을 확인한다.
 - 자동화가 꺼진 commit/push/merge는 사용자가 명시적으로 요청하지 않으면 수행하지 않는다.
