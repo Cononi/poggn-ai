@@ -9,7 +9,10 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+AGENTS_TOKEN_BUDGET = 900
+
 TOKEN_FILES = [
+    ROOT / "AGENTS.md",
     *sorted((ROOT / ".codex" / "agents").glob("*.toml")),
     ROOT / ".codex" / "skills" / "pogo" / "SKILL.md",
     ROOT / ".codex" / "skills" / "pogo-settings" / "SKILL.md",
@@ -72,14 +75,20 @@ def estimate_tokens(text: str) -> int:
 def token_report() -> None:
     entries: list[tuple[int, Path]] = []
     total = 0
+    agents_tokens = 0
     for path in TOKEN_FILES:
         if not path.exists():
             continue
         tokens = estimate_tokens(path.read_text(encoding="utf-8"))
+        if path == ROOT / "AGENTS.md":
+            agents_tokens = tokens
         entries.append((tokens, path))
         total += tokens
+    if agents_tokens > AGENTS_TOKEN_BUDGET:
+        raise ValueError(f"AGENTS.md token estimate {agents_tokens} exceeds budget {AGENTS_TOKEN_BUDGET}")
     largest = sorted(entries, reverse=True)[:5]
     print(f"token-estimate-total={total}")
+    print(f"token-estimate-agents={agents_tokens}/{AGENTS_TOKEN_BUDGET}")
     for tokens, path in largest:
         print(f"token-estimate-file={path.relative_to(ROOT)} tokens~{tokens}")
 
