@@ -45,7 +45,8 @@
 - `security`: 인증, 권한, 입력 검증, 민감 데이터, secret, dependency, 네트워크, 파일, abuse case.
 - `safe-database-engineering`: 스키마, SQL, 트랜잭션, 인덱스, 마이그레이션, ORM이 실제 DB 계약에 영향을 주는 작업.
 - `safe-git-automation`: 브랜치, worktree, commit, push, PR, 병렬 작업공간, 충돌 복구.
-- `pogo-settings`: commit/push/merge 자동화 상태와 언어 모드를 `$pogo-settings` 하위 명령으로 확인 또는 변경.
+- `pogo-settings`: commit/push/merge, subagent auto, 언어 모드를 shortcut 명령으로 확인 또는 변경.
+- `pogo-subagent-auto` (`Pogo SubAgent Auto`): `$pogo-subagent-auto`, SubAgent 강제, evidence 파일, commit/push/merge 차단 정책.
 
 여러 영역이 걸리면 `architecture`로 경계를 먼저 정하고, `backend`, `front`, `designer`, `security`, `safe-database-engineering`을 병렬 또는 순차로 배치한다.
 
@@ -78,10 +79,14 @@ merge, release, worktree 정리는 별도 단계로 취급한다. main merge와 
 Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Subagents로 해석한다.
 
 - 코드 수정, 버그 수정, 기능 개발, 리팩터링, 테스트 작성, QA, 보안/아키텍처 판단은 Multi Agent를 기본 경로로 사용한다.
+- `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
+- subagent auto가 켜져 있으면 메인 에이전트는 구현 전 최소 1개 이상의 관련 Subagent를 시작해야 하며, 분리 가능한 탐색/구현/검증은 병렬로 진행한다.
+- hook은 Subagent 도구를 직접 실행하지 않는다. hook은 `$pogo-subagent-auto` shortcut을 `decision: block`으로 처리해 상태 변경/출력을 담당한다. `subagent.auto=true`이면 git commit/push/merge 전에 `.codex/state/subagent-evidence.json`의 PASS 증거를 요구한다.
+- subagent auto 예외는 `$pogo-subagent-auto`, `$pogo-settings` 같은 hook shortcut이나 단순 상태 출력처럼 Subagent가 실질 작업 단위를 가질 수 없는 경우뿐이다.
 - Single Agent는 문서 한두 줄 수정, 단순 질문 답변, 명령 출력 확인, 명확한 단일 파일 T0 변경처럼 Subagent 비용이 이득보다 큰 경우에만 예외로 둔다.
 - 기본 모델은 `.codex/agents/*.toml`에 정의된 `gpt-5.3-codex-spark`를 따른다.
 - `.codex/agents`의 `model_reasoning_effort`는 기본 `high`로 둔다.
-- 워커, 검증, 보안, 아키텍처, 버그 수정 agent는 `model_reasoning_effort = "xhigh"`로 둔다.
+- 워커, 검증, 보안, 아키텍처, 버그 수정, 리팩터, 테스터 agent는 `model_reasoning_effort = "xhigh"`로 둔다.
 - Subagents는 현재 sandbox와 approval 정책을 상속한다.
 - 병렬 작성은 충돌 위험이 있으므로 메인 에이전트가 작업 단위와 파일 경계를 정한다.
 - Subagent 결과는 원시 로그가 아니라 결정, 변경 범위, 검증 증거, 남은 위험으로 요약한다.
@@ -97,7 +102,17 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Su
 - `pogo-front-agent`: 화면, 상태, 접근성, 반응형, 프론트 검증.
 - `pogo-designer-agent`: UX, 정보 구조, 레이아웃, 시각 일관성.
 - `pogo-security-agent`: 보안 위협 모델링과 취약점 검토.
-- `pogo-verifier`: 최종 검증 판단.
+- `pogo-verifier`: 완료 작업 요약, 변경 파일, 검증 증거, 요구사항 적합도 근거 확인.
+- `pogo-refactorer`: 메인 오케스트레이터가 필요하다고 판단한 최소 범위 리팩터링.
+- `pogo-tester`: 최종 테스트 코드 작성과 테스트 실행.
+
+Subagent 완료 후 `pogo-verifier`는 원시 로그 대신 작업 요약, 변경 파일, 검증 증거, 남은 위험을 보고한다.
+메인 오케스트레이터는 작업지시와 결과의 유사도/완성도를 0-100으로 판단하고, 95 미만이면 재작업을 지시한다.
+95 이상이고 리팩터링 필요성이 확인된 경우에만 `pogo-refactorer`에게 최소 파일 목록과 리팩터링 목적을 전달한다.
+리팩터링은 기능 손실, public contract 변경, 테스트 의미 변경 없이 최소 범위로 수행한다.
+최종 단계는 `pogo-tester`가 담당하며, 메인은 기능 요약, 변경 파일, 테스트 초점, 관련 테스트 경로만 간결하게 전달한다.
+테스트 코드 작성과 테스트 실행은 `pogo-tester`가 수행한다.
+`subagent.auto=true`에서 작업을 완료하려면 `.codex/state/subagent-evidence.json`에 현재 branch, HEAD, 변경 파일 목록, `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과를 남긴다. evidence는 현재 git 상태와 일치해야 하며, 24시간 이상이면 stale로 보고 삭제 후 다시 생성한다.
 
 버그 수정은 `pogo-bug-agent`를 우선 사용하고, 구현은 `pogo-worker` 또는 영역별 agent로 나눈 뒤 `pogo-verifier`에 넘긴다. 보안 영향이 있는 구현은 `pogo-security-agent` 검토를 먼저 거친 뒤 `pogo-verifier`에 넘긴다.
 

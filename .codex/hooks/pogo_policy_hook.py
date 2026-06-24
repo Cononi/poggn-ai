@@ -12,7 +12,15 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = ROOT / ".codex" / "script"
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from _pogo_settings import consume_git_once, git_allowed, git_summary, language_summary, load_state
+from _pogo_settings import (
+    consume_git_once,
+    git_allowed,
+    git_summary,
+    language_summary,
+    load_state,
+    subagent_auto_summary,
+    subagent_evidence_status,
+)
 
 GIT_TARGETS = ("commit", "push", "merge")
 SHELL_SEPARATORS = {";", "&", "&&", "|", "||", "(", ")"}
@@ -74,6 +82,9 @@ def run_shortcut(prompt: str) -> dict[str, str] | None:
     script = SCRIPT_DIR / "pogo_settings.py"
     if parts[0] == "$pogo-settings":
         return block(run_script([sys.executable, str(script), *parts[1:]]))
+    if parts[0] == "$pogo-subagent-auto":
+        args = parts[1:] if len(parts) > 1 else ["status"]
+        return block(run_script([sys.executable, str(script), "subagent", "auto", *args]))
     return None
 
 
@@ -149,6 +160,23 @@ def deny_message(mode: str, key: str) -> str:
     return en
 
 
+def subagent_evidence_deny_message(mode: str, key: str, detail: str) -> str:
+    path = ".codex/state/subagent-evidence.json"
+    en = (
+        f"Blocked by pogo subagent-auto: git {key} requires subagent evidence. "
+        f"Create {path} with PASS evidence from pogo-verifier or pogo-tester. Detail: {detail}"
+    )
+    ko = (
+        f"pogo subagent-auto가 git {key} 실행을 차단했습니다. "
+        f"pogo-verifier 또는 pogo-tester PASS 증거를 {path}에 남겨야 합니다. 상세: {detail}"
+    )
+    if mode == "ko":
+        return ko
+    if mode == "bilingual":
+        return f"{ko}\n{en}"
+    return en
+
+
 def run_pre_tool_use() -> int:
     state = load_state()
     payload = read_payload()
@@ -157,23 +185,37 @@ def run_pre_tool_use() -> int:
     commands = git_subcommands(text)
     for key in GIT_TARGETS:
         if key in commands:
-            if git_allowed(state, key):
-                consume_git_once(state, key)
-                return 0
-            print(deny_message(mode, key), file=sys.stderr)
-            return 1
+            if not git_allowed(state, key):
+                print(deny_message(mode, key), file=sys.stderr)
+                return 1
+            if state.get("subagent", {}).get("auto"):
+                ok, detail = subagent_evidence_status()
+                if not ok:
+                    print(subagent_evidence_deny_message(mode, key, detail), file=sys.stderr)
+                    return 1
+            consume_git_once(state, key)
+            return 0
     return 0
 
 
 def run_session_start() -> int:
     state = load_state()
     mode = language_summary(state)
+    subagent_auto = subagent_auto_summary(state)
+    auto_note = ""
+    if state.get("subagent", {}).get("auto"):
+        if mode == "ko":
+            auto_note = " 개발/수정/리뷰/QA 작업은 Subagents 필수입니다."
+        elif mode == "bilingual":
+            auto_note = " 개발/수정/리뷰/QA 작업은 Subagents 필수입니다. Subagents are required for development/review/QA tasks."
+        else:
+            auto_note = " Subagents are required for development/review/QA tasks."
     if mode == "ko":
-        print(f"Pogo 설정: {git_summary(state)}, lang={mode}")
+        print(f"Pogo 설정: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
     elif mode == "bilingual":
-        print(f"Pogo 설정 / Pogo settings: {git_summary(state)}, lang={mode}")
+        print(f"Pogo 설정 / Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
     else:
-        print(f"Pogo settings: {git_summary(state)}, lang={mode}")
+        print(f"Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
     return 0
 
 
