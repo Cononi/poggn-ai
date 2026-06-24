@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security"
+  short_description: "Security review for code and APIs."
+  default_prompt: "Use the security skill to review changes for authentication, authorization, input validation, data exposure, secrets, dependency risk, and abuse cases."

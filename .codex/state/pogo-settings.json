@@ -1,0 +1,15 @@
+{
+  "gitAutomation": {
+    "commit": false,
+    "push": false,
+    "merge": false
+  },
+  "gitAllowOnce": {
+    "commit": false,
+    "push": false,
+    "merge": false
+  },
+  "language": {
+    "mode": "ko"
+  }
+}

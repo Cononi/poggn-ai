@@ -1,0 +1,134 @@
+# Commit Policy
+
+## 우선순위
+
+1. 저장소의 `CONTRIBUTING.md`, `AGENTS.md`, commit lint 규칙
+2. 같은 저장소의 최근 commit 관례
+3. 이 문서의 기본 규칙
+
+## Commit 단위
+
+한 commit에는 하나의 논리적 목적만 둔다.
+
+좋은 분리 예시:
+
+```text
+feat(user): add registration endpoint
+test(user): cover duplicate email conflict
+docs(user): document registration contract
+```
+
+단, 구현과 테스트를 분리하면 중간 commit이 깨지는 저장소에서는 함께 commit한다.
+commit 수를 늘리는 것보다 각 commit이 검증 가능한 상태인지가 중요하다.
+
+## Staging
+
+기존 사용자 변경과 현재 작업을 분리한다.
+
+```bash
+git status --porcelain=v2 --branch
+git diff -- <path>
+git add -- <path>
+git diff --cached --check
+git diff --cached --stat
+git diff --cached
+```
+
+부분 staging이 필요하면 저장소와 도구가 지원하는 방식으로 hunk 단위 stage를 사용한다.
+의도하지 않은 파일이 보이면 commit하지 말고 staging을 수정한다.
+
+`git add -A`와 `git commit -a`는 범위가 명확하고 전체 변경이 현재 작업일 때만 사용한다.
+자동화의 기본값으로 사용하지 않는다.
+
+## Secret 및 민감정보
+
+staged diff에서 다음을 확인한다.
+
+- private key, access token, password
+- 실제 운영 endpoint와 credential
+- 개인정보나 운영 데이터 dump
+- `.env`, keystore, 인증 파일
+
+의심되는 값을 발견하면 commit을 중단한다.
+값 자체를 보고서, 로그, PR 본문에 복사하지 않는다.
+저장소에 secret scanner가 있으면 해당 검사를 실행한다.
+
+## 메시지 형식
+
+저장소 규칙이 없으면 다음 형식을 사용한다.
+
+```text
+<type>(<scope>): <imperative summary>
+```
+
+기본 type:
+
+```text
+feat | fix | test | refactor | docs | chore | build | ci | perf | revert
+```
+
+제목은 실제 변경을 설명하고 모호한 표현을 피한다.
+작업 commit 제목에는 PR 번호를 강제하지 않는다. PR 번호는 PR이 생성된 뒤에 확정되므로 작업 commit에 넣기 위해 amend, rebase, force push가 필요해지는 흐름을 만들지 않는다.
+PR 번호는 PR 제목, PR 본문, 최종 squash merge commit, release note에서 추적한다.
+
+나쁜 예:
+
+```text
+update files
+fix stuff
+changes
+```
+
+본문에는 필요할 때 다음을 적는다.
+
+- 무엇보다 왜 바꿨는지
+- 호환성 또는 migration 영향
+- Issue 또는 Spec 식별자
+- 의도적으로 제외한 내용
+
+최종 squash merge commit은 다음 형식을 사용한다.
+
+```text
+<type>(<scope>): <summary> (#<pr-number>)
+```
+
+예시:
+
+```text
+feat(user): add registration endpoint (#123)
+```
+
+## Commit 전 검증
+
+최소한 다음을 수행한다.
+
+1. staged diff 전체 검토
+2. `git diff --cached --check`
+3. 관련 테스트, lint, build
+4. 민감정보와 생성 파일 확인
+5. author identity와 현재 branch 확인
+
+검증하지 못한 항목은 `NOT RUN`으로 기록한다.
+
+## Commit 후 검증
+
+```bash
+git rev-parse HEAD
+git show --stat --oneline --decorate HEAD
+git status --porcelain=v2 --branch
+```
+
+commit hash가 확인되어야 commit 완료라고 보고한다.
+commit 후 남은 변경이 현재 작업인지 기존 사용자 변경인지 구분한다.
+
+## History 변경
+
+다음은 자동화하지 않는다.
+
+- 공개된 commit의 amend
+- 공개된 branch의 rebase
+- commit 삭제 또는 순서 변경
+- force push
+
+사용자가 명시적으로 요청한 경우에도 대상 branch, remote 상태, 손실 가능성을 먼저 확인한다.
+강제 갱신이 승인되면 일반 `--force`보다 보호 범위가 있는 방법을 검토한다.

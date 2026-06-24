@@ -1,6 +1,0 @@
-{
-  "reuse_mode": "scoped_fresh",
-  "reset_on_new_maw": true,
-  "close_completed_on_wave_end": true,
-  "max_context_jobs_per_thread": 3
-}

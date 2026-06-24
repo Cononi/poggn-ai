@@ -1,0 +1,4 @@
+interface:
+  display_name: "Designer"
+  short_description: "UX and visual design review for product interfaces."
+  default_prompt: "Use the designer skill to review or build user-facing interface design with clear UX, layout, responsive behavior, accessibility, and visual consistency."
