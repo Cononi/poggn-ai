@@ -43,6 +43,7 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 - 사용한다: 코드 수정, 버그 수정, 기능 개발, 코드베이스 탐색, 테스트/로그 분석, 리뷰, 여러 독립 작업의 병렬 구현.
 - 사용하지 않는다: 문서 한두 줄 수정, 단순 질문 답변, 명령 출력 확인, 요구사항이 불명확한 작업, 동시 편집 충돌 가능성이 병렬 이점보다 큰 작업.
 - 단, `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
+- `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 메인 오케스트레이터는 작업 브리프(목표/범위/증거 포인트)를 먼저 작성하고 관련 Subagent를 즉시(가능하면 병렬로) 실행한다.
 - subagent auto가 켜져 있으면 메인 에이전트는 구현 전 최소 1개 이상의 관련 Subagent를 시작해야 하며, 분리 가능한 탐색/구현/검증은 병렬로 진행한다.
 - subagent auto가 켜져 있으면 git 상태 확인, commit, push, PR, merge, release 같은 Git 실행 작업은 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 승인 범위, 보호 규칙 우회 여부, 최종 보고만 판단한다.
 - subagent auto가 켜져 있으면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 원시 로그, 전체 diff, tool trace를 기본 재열람하지 않고 Subagent의 `summary`, `changed_files`, `evidence`, `risks`만 소비한다.
@@ -61,7 +62,7 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 작업 시작 전에 pogo 계획과 evidence-driven-sdd 계획 중 무엇이 더 적합한지 판단한다.
 
 - pogo 계획을 쓴다: T0 수정, 좁은 버그 수정, 리팩터링 없는 단순 구현, 외부 동작 변화가 없거나 작고 명확한 변경.
-- evidence-driven-sdd 계획을 쓴다: 사용자 동작, API, 데이터 모델, 비즈니스 규칙, 보안, 결제, 개인정보, 마이그레이션, 동시성, 호환성에 영향이 있는 T1/T2 변경.
+- evidence-driven-sdd 계획을 쓴다: 사용자 동작, API, 데이터 모델, 보안, 결제, 개인정보, 마이그레이션, 동시성, 호환성에 영향이 있는 T1/T2 변경.
 - 둘 다 애매하면 evidence-driven-sdd 기준으로 등급을 먼저 정하고, 불필요한 문서화가 되지 않도록 최소 Spec만 작성한다.
 - 계획 비교가 필요한 작업에서는 `pogo-planner` Subagent에게 pogo 방식과 evidence-driven-sdd 방식의 장단점, 위험, 검증 기준을 비교하게 하고 메인 에이전트가 최종 선택한다.
 
@@ -81,7 +82,7 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 
 재사용 가능한 커스텀 에이전트는 `.codex/agents/`에 둔다.
 
-1. 메인 에이전트가 작업을 독립 단위로 나누고, 코드 변경 계열이면 Subagents 사용을 먼저 시도한다.
+1. 메인 에이전트가 작업을 독립 단위로 나누고, 3~5줄 브리프(목표/범위/제약/검증 포인트)로 시작해 코드 변경 계열이면 Subagents 사용을 먼저 시도한다.
 2. 버그 수정은 `pogo-bug-agent`가 재현, 원인 축소, 수정 방향, 회귀 검증을 우선 담당한다.
 3. 구현 Subagent는 승인된 계획과 범위 안에서만 작업하고 결과 요약, 변경 파일, 검증 결과, 남은 위험을 반환한다.
 4. 구현이 끝난 작업 중 보안 영향이 있으면 먼저 `pogo-security-agent`에게 보안 검토를 의뢰한다.
