@@ -4,6 +4,7 @@
 
 worktree는 모든 Git 작업의 필수 조건이 아니다.
 단일 작업에는 일반 branch를 사용하고 병렬 작업에는 worktree를 사용한다.
+Single Agent와 Multi Agent 모두 동일 정책을 적용한다.
 
 ## 선택 표
 
@@ -83,6 +84,8 @@ git worktree list --porcelain
 
 이미 존재하는 branch를 사용할 때는 다른 worktree에서 사용 중인지 먼저 확인한다.
 `--force`로 Git의 중복 checkout 보호를 우회하지 않는다.
+
+deterministic script(고정명령)로 위 절차를 기록하고, LLM은 결과 요약만 수행한다.
 
 ## 에이전트 소유권
 

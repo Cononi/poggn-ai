@@ -307,6 +307,56 @@ def collect_commits(rev_range: str, paths: list[str]) -> list[tuple[str, str]]:
     return commits
 
 
+def collect_merge_commits(rev_range: str, paths: list[str]) -> list[dict[str, str]]:
+    proc = run([
+        "git",
+        "log",
+        "--merges",
+        "--pretty=format:%H%x1f%h%x1f%s%x1f%b%x1e",
+        rev_range,
+        "--",
+        *paths,
+    ])
+    if proc.returncode:
+        raise SystemExit(proc.stderr.strip() or "Unable to collect merge git log")
+    commits: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for record in proc.stdout.split("\x1e"):
+        record = record.strip()
+        if not record:
+            continue
+        parts = record.split("\x1f", 3)
+        if len(parts) != 4:
+            continue
+        full, short, subject, body = parts
+        if full in seen:
+            continue
+        seen.add(full)
+        commits.append({
+            "full": full,
+            "short": short,
+            "subject": subject.strip(),
+            "body": body.strip(),
+        })
+    return commits
+
+
+FOOTER = re.compile(r"^(?:[A-Za-z0-9-]+|BREAKING CHANGE):\s+.+$")
+
+
+def split_body_footer(body: str) -> tuple[str, list[str]]:
+    lines = [line.rstrip() for line in body.splitlines()]
+    while lines and not lines[-1].strip():
+        lines.pop()
+    footer: list[str] = []
+    while lines and FOOTER.match(lines[-1].strip()):
+        footer.append(lines.pop().strip())
+    while lines and not lines[-1].strip():
+        lines.pop()
+    footer.reverse()
+    return "\n".join(lines).strip(), footer
+
+
 def collect_changed_files(base: str | None, target: str, paths: list[str]) -> list[str]:
     files = changed_files(base, target)
     return [item for item in files if any(path_matches(item, path) for path in paths)]
@@ -425,6 +475,83 @@ def notes(args: argparse.Namespace) -> int:
     return 0
 
 
+def merge_notes(args: argparse.Namespace) -> int:
+    project = project_name(args)
+    mapped = mapped_project(project)
+    path = project_path(args)
+    base = args.from_ref or latest_project_tag(project)
+    target = args.to_ref or "HEAD"
+    rev_range = f"{base}..{target}" if base else target
+    version = current_version(path, mapped)
+    version_label = version or "unknown"
+    version_note = "valid semver" if version else "missing or invalid semver; release create still requires an explicit valid tag/version"
+    if not args.verify:
+        print("--verify is required so release notes include actual verification evidence", file=sys.stderr)
+        return 2
+    scope_paths = project_scope_paths(mapped, path)
+    merges = collect_merge_commits(rev_range, scope_paths)
+    files = collect_changed_files(base, target, scope_paths)
+    print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
+    print("## 릴리즈 판단\n")
+    if merges:
+        print("- 이전 릴리즈 이후 병합된 개발 건이 있어 릴리즈 검토를 권장합니다.")
+        print("- 자동 릴리즈는 수행하지 않습니다. 사용자가 명시적으로 요청하면 release create 단계를 진행하세요.")
+    else:
+        print("- 기준 범위에서 병합 기록이 없어 즉시 릴리즈 필요성은 낮습니다.")
+    print()
+    print("## 버전\n")
+    print(f"- 현재 버전: `{version_label}`")
+    print(f"- 버전 상태: {version_note}")
+    print(f"- 태그 정책: `{project}-v<semver>`")
+    print(f"- 기준 ref/tag: `{base or 'none'}`")
+    print(f"- 대상 ref: `{target}`\n")
+    print("## 요약\n")
+    if merges:
+        for item in merges[:5]:
+            print(f"- {item['subject']} (`{item['short']}`)")
+    else:
+        print("- 병합 commit 없음")
+    print()
+    print("## Merge 상세\n")
+    if merges:
+        for index, item in enumerate(merges, start=1):
+            body, footer = split_body_footer(item["body"])
+            print(f"### {index}. {item['subject']}\n")
+            print(f"- Commit: `{item['short']}`")
+            print("- Body:")
+            if body:
+                for line in body.splitlines():
+                    print(f"  {line}" if line.strip() else "")
+            else:
+                print("  없음")
+            print("- Footer:")
+            if footer:
+                for line in footer:
+                    print(f"  - {line}")
+            else:
+                print("  - 없음")
+            print()
+    else:
+        print("- 병합 commit 없음\n")
+    print("## 변경 파일\n")
+    if files:
+        for item in files:
+            print(f"- `{item}`")
+    else:
+        print("- 변경 파일 없음")
+    print("\n## 검증\n")
+    for item in args.verify:
+        print(f"- `{item}`")
+    print("\n## 호환성 / 마이그레이션\n")
+    policy_changed = any(item.startswith((".codex/", ".github/", "AGENTS.md")) for item in files)
+    print("- 데이터베이스/외부 API 마이그레이션: 확인 필요 시 별도 검증")
+    print(f"- 운영 정책 또는 설정 변경: {'있음' if policy_changed else '없음'}")
+    print("\n## 롤백\n")
+    print(f"- 기준 ref/tag: `{base or 'none'}`")
+    print(f"- 문제가 있으면 `{target}`에 포함된 merge 또는 관련 commit을 revert하고 새 release를 생성하세요.")
+    return 0
+
+
 def projects(args: argparse.Namespace) -> int:
     project_map = load_project_map()
     mapped = project_map.get("projects", [])
@@ -512,6 +639,12 @@ def main(argv: list[str]) -> int:
     n.add_argument("--to", dest="to_ref")
     n.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
     n.set_defaults(fn=notes)
+    m = sub.add_parser("merge-notes", help="draft release notes from merge commit title/body/footer without creating a release")
+    add_scope_args(m)
+    m.add_argument("--from", dest="from_ref")
+    m.add_argument("--to", dest="to_ref")
+    m.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
+    m.set_defaults(fn=merge_notes)
     p = sub.add_parser("projects")
     p.set_defaults(fn=projects)
     i = sub.add_parser("impacted")
