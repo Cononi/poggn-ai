@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -10,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 AGENTS_TOKEN_BUDGET = 900
+SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 
 TOKEN_FILES = [
     ROOT / "AGENTS.md",
@@ -104,6 +106,19 @@ def check_project_map() -> None:
             raise ValueError(f"project-map {name}.versionSource is invalid")
         if "release" in project and not isinstance(project["release"], bool):
             raise ValueError(f"project-map {name}.release must be true or false")
+        if project.get("release", True):
+            if not version_source:
+                raise ValueError(f"project-map {name}.versionSource is required when release=true")
+            source_path = ROOT / version_source
+            if not source_path.exists():
+                raise ValueError(f"project-map {name}.versionSource is missing: {version_source}")
+            if source_path.name in {"package.json", "version.json"}:
+                version_data = json.loads(source_path.read_text(encoding="utf-8"))
+                version = version_data.get("version") if isinstance(version_data, dict) else None
+            else:
+                version = source_path.read_text(encoding="utf-8").strip()
+            if not isinstance(version, str) or not SEMVER.fullmatch(version):
+                raise ValueError(f"project-map {name}.versionSource must contain a semver version")
 
 
 def estimate_tokens(text: str) -> int:
