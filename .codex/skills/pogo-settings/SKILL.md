@@ -66,7 +66,7 @@ evidence 파일 수정 시간이 24시간 이상이면 보조 stale guard로 거
 
 ## Lang 정책
 
-`lang`은 응답, 계획, PR 본문, release note 같은 설명문에 적용한다.
+`lang`은 응답, 계획, release note 같은 설명문에 적용한다.
 Git 식별자인 branch, tag, version, commit type/scope는 `lang=ko`여도 영어/ASCII 관례를 유지한다.
 
 ## 작업 절차

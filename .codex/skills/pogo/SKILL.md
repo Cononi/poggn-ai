@@ -45,7 +45,7 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 - 단, `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
 - `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 메인 오케스트레이터는 작업 브리프(목표/범위/증거 포인트)를 먼저 작성하고 관련 Subagent를 즉시(가능하면 병렬로) 실행한다.
 - subagent auto가 켜져 있으면 메인 에이전트는 구현 전 최소 1개 이상의 관련 Subagent를 시작해야 하며, 분리 가능한 탐색/구현/검증은 병렬로 진행한다.
-- subagent auto가 켜져 있으면 git 상태 확인, commit, push, PR, merge, release 같은 Git 실행 작업은 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 승인 범위, 보호 규칙 우회 여부, 최종 보고만 판단한다.
+- subagent auto가 켜져 있으면 git 상태 확인, commit, push, merge, release 같은 Git 실행 작업은 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 승인 범위, 보호 규칙 우회 여부, 최종 보고만 판단한다.
 - subagent auto가 켜져 있으면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 원시 로그, 전체 diff, tool trace를 기본 재열람하지 않고 Subagent의 `summary`, `changed_files`, `evidence`, `risks`만 소비한다.
 - Thin Mode에서 원시 로그나 전체 diff 재확인은 사용자 요청, 실패, Subagent 간 불일치, 보안/데이터 손실 위험이 있을 때만 해당 파일/명령으로 좁게 수행한다.
 - `pogo-git-agent`가 Git 작업을 처리해도 `git commit/push/merge` 사전 hook은 `pogo-verifier` 또는 `pogo-tester`의 PASS evidence를 요구한다.

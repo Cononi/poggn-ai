@@ -111,7 +111,7 @@ superseded_by: null
 ## Delivery Links
 
 - Issue:
-- Pull Request:
+- Release:
 - ADR:
 - API Contract:
 - Release Note:
@@ -123,6 +123,6 @@ superseded_by: null
 - [ ] 미실행 검증과 잔여 위험 기록
 - [ ] API·데이터·보안·호환성 검토
 - [ ] 필요한 롤백·마이그레이션 검증
-- [ ] PR이 Issue와 Spec을 연결
+- [ ] Release note 또는 commit이 Issue와 Spec을 연결
 - [ ] 차단되는 `[OPEN]` 없음
 ```

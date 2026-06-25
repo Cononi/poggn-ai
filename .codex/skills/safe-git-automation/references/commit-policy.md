@@ -50,7 +50,7 @@ staged diff에서 다음을 확인한다.
 - `.env`, keystore, 인증 파일
 
 의심되는 값을 발견하면 commit을 중단한다.
-값 자체를 보고서, 로그, PR 본문에 복사하지 않는다.
+값 자체를 보고서, 로그, release note에 복사하지 않는다.
 저장소에 secret scanner가 있으면 해당 검사를 실행한다.
 
 ## 메시지 형식
@@ -68,8 +68,7 @@ feat | fix | test | refactor | docs | chore | build | ci | perf | revert
 ```
 
 제목은 실제 변경을 설명하고 모호한 표현을 피한다.
-작업 commit 제목에는 PR 번호를 강제하지 않는다. PR 번호는 PR이 생성된 뒤에 확정되므로 작업 commit에 넣기 위해 amend, rebase, force push가 필요해지는 흐름을 만들지 않는다.
-PR 번호는 PR 제목, PR 본문, 최종 squash merge commit, release note에서 추적한다.
+작업 commit 제목에는 PR 번호를 강제하지 않는다. PR은 기본 생성하지 않으며, 최종 추적은 project-scoped release tag와 GitHub Release에서 한다.
 
 나쁜 예:
 
@@ -86,17 +85,7 @@ changes
 - Issue 또는 Spec 식별자
 - 의도적으로 제외한 내용
 
-최종 squash merge commit은 다음 형식을 사용한다.
-
-```text
-<type>(<scope>): <summary> (#<pr-number>)
-```
-
-예시:
-
-```text
-feat(user): add registration endpoint (#123)
-```
+main 반영은 검증된 작업 commit을 fast-forward하는 것을 기본으로 한다. squash merge commit을 새로 만들지 않는다.
 
 ## Commit 전 검증
 

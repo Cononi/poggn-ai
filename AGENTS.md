@@ -35,7 +35,7 @@
 
 - 기본 작업 판단과 단순 구현: `pogo`.
 - 요구사항, acceptance criteria, 고위험 기능/API/데이터/보안 변경: `evidence-driven-sdd`.
-- 브랜치, worktree, commit, push, PR, merge, release: `safe-git-automation`; Subagents 사용 시 `pogo-git-agent`에게 실행 위임.
+- 브랜치, worktree, commit, push, merge, release: `safe-git-automation`; Subagents 사용 시 `pogo-git-agent`에게 실행 위임.
 - `$pogo-settings`, git 자동화 상태, lang, hook/script 설정: `pogo-settings`.
 - `$pogo-subagent-auto`, SubAgent 강제, evidence, commit/push/merge 차단: `pogo-subagent-auto`.
 - 구조/경계/contract: `architecture`.
@@ -57,7 +57,7 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Su
 - `subagent.auto=true` 상태에서는 개발/수정/리뷰/QA 시작 시 광범위 리포지토리 탐색, 전체 `git diff`/`git log` 리뷰, 전체 검증/테스트를 먼저 수행하지 않는다.
 - 대신 메인 오케스트레이터는 우선 3~5줄 브리프(목표/범위/위임 대상/검증 포인트)로 Subagent를 기동한다.
 - 직접 개입은 다음 조건만 허용: 사용자 요청, 작업 실패, Subagent 불일치, 보안/데이터 손실 위험, Subagent 사용 불가.
-`subagent.auto=true`이면 git 상태 확인, commit, push, PR, merge 작업은 `pogo-git-agent`에 우선 위임하고, 메인 에이전트는 결정과 최종 보고만 담당한다.
+`subagent.auto=true`이면 git 상태 확인, commit, push, merge, release 작업은 `pogo-git-agent`에 우선 위임하고, 메인 에이전트는 결정과 최종 보고만 담당한다.
 `subagent.auto=true`이면 `pogo`와 `pogo-subagent-auto` 기준을 따른다.
 `subagent.auto=true`이면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 Subagent의 `summary`, `changed_files`, `evidence`, `risks`만 소비하고, 원시 로그와 전체 diff는 사용자 요청, 실패, 불일치, 보안/데이터 손실 위험이 있을 때만 좁게 재확인한다.
 재사용 agent 정의와 모델 설정은 `.codex/agents/*.toml`을 따른다.
@@ -71,8 +71,8 @@ Git 작업은 `pogo-settings`와 `safe-git-automation`을 따른다. `subagent.a
 - 자동화가 꺼진 commit/push/merge는 사용자가 명시적으로 요청하지 않으면 수행하지 않는다.
 - 명시 요청 1회는 `$pogo-settings git <target> once`를 사용한다.
 - 보호 규칙 우회, force push, destructive command는 별도 명시 승인 없이는 수행하지 않는다.
-- 작업 commit에는 PR 번호를 강제하지 않는다. 최종 squash merge commit 끝에 `(#번호)`를 남긴다.
-- 작은 PR 본문은 `Why`, `What`, `Verify`, `Risk/Rollback`만 남긴다.
+- PR은 기본 생성하지 않는다. branch push에서 같은 commit SHA의 `pogo-policy` PASS를 확인한다.
+- main 반영은 검증된 commit의 fast-forward만 허용하고, 최종 추적은 project-scoped Release/tag로 한다.
 
 ## 구현과 검증
 

@@ -53,18 +53,13 @@ def protection_payload() -> dict:
             "contexts": [REQUIRED_CHECK],
         },
         "enforce_admins": True,
-        "required_pull_request_reviews": {
-            "dismiss_stale_reviews": True,
-            "require_code_owner_reviews": False,
-            "required_approving_review_count": 1,
-            "require_last_push_approval": True,
-        },
+        "required_pull_request_reviews": None,
         "restrictions": None,
         "required_linear_history": False,
         "allow_force_pushes": False,
         "allow_deletions": False,
         "block_creations": False,
-        "required_conversation_resolution": True,
+        "required_conversation_resolution": False,
         "lock_branch": False,
         "allow_fork_syncing": True,
     }
@@ -92,7 +87,7 @@ def apply_protection(owner: str, repo: str, branch: str, payload: dict) -> int:
     if result.returncode != 0:
         print(result.stderr.strip() or result.stdout.strip(), file=sys.stderr)
         return result.returncode
-    print(f"branch-protection: applied {owner}/{repo}@{branch} requiring {REQUIRED_CHECK}")
+    print(f"branch-protection: applied {owner}/{repo}@{branch} requiring {REQUIRED_CHECK} without PR reviews")
     return 0
 
 

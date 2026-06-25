@@ -70,7 +70,7 @@ git clean -ndx
 - 대상이 보호 branch가 아닌가
 - 다른 사용자의 commit을 덮지 않는가
 - remote를 fetch한 뒤 기대한 tip인가
-- PR과 협업자에게 영향이 기록되었는가
+- release note와 협업자에게 영향이 기록되었는가
 
 자동화의 기본 동작은 history를 보존하는 새 commit이다.
 

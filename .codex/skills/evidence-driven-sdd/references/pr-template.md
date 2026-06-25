@@ -1,4 +1,4 @@
-# Pull Request Template
+# Release Delivery Template
 
 ```md
 ## Why

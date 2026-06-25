@@ -1,6 +1,6 @@
 ---
 name: evidence-driven-sdd
-description: 기능·API·데이터 변경 전에 검증 가능한 요구사항과 완료 증거를 정의한다. 신규 기능, 비즈니스 규칙 변경, 고위험 수정, Spec·테스트·PR 연결이 필요할 때 사용한다.
+description: 기능·API·데이터 변경 전에 검증 가능한 요구사항과 완료 증거를 정의한다. 신규 기능, 비즈니스 규칙 변경, 고위험 수정, Spec·테스트·Release 연결이 필요할 때 사용한다.
 metadata:
   version: "2.0"
 ---
@@ -22,14 +22,14 @@ metadata:
 - 여러 모듈 또는 외부 시스템에 영향을 준다.
 - 구현 전에 범위와 완료 조건을 합의해야 한다.
 
-오타, 포맷팅, 주석처럼 외부 동작이 변하지 않는 수정은 Issue와 PR만으로 처리할 수 있다.
+오타, 포맷팅, 주석처럼 외부 동작이 변하지 않는 수정은 Issue와 commit만으로 처리할 수 있다.
 
 ## 파일 로딩 원칙
 
 이 파일만 먼저 읽는다. 필요한 경우에만 다음 문서를 추가로 읽는다.
 
 - Spec 작성·수정: `references/spec-template.md`
-- PR 작성·검토: `references/pr-template.md`
+- Release 전달 기록 작성: `references/pr-template.md`
 
 관련 없는 참조 문서를 한꺼번에 읽지 않는다.
 
@@ -126,7 +126,7 @@ PASS | FAILED | PARTIAL | NOT RUN
 - Issue: 문제, 맥락, 우선순위
 - Spec: 원하는 동작과 완료 기준
 - Test/Contract: 실행 가능한 검증
-- PR: 실제 변경, 위험, 검증 증거
+- Release: 실제 변경, 위험, 검증 증거
 - Commit: 세부 변경 이력
 - Release Note: 사용자·운영자에게 의미 있는 변화
 
@@ -142,7 +142,7 @@ PASS | FAILED | PARTIAL | NOT RUN
 4. 미실행 검증과 잔여 위험이 기록되었다.
 5. API, 데이터, 보안, 호환성 영향이 처리되었다.
 6. 필요한 롤백, 마이그레이션, 관측성이 준비되었다.
-7. PR이 Issue와 Spec을 연결한다.
+7. Release note 또는 commit이 Issue와 Spec을 연결한다.
 8. 차단되는 `[OPEN]` 항목이 없다.
 
 코드 작성만으로는 완료가 아니다.
