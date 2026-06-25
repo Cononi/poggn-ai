@@ -28,9 +28,7 @@ Also return:
 - summary: 1-3 lines
 - changed_files: paths reviewed or changed by completed work
 - evidence: concise test/diff/contract evidence
-- score_basis: concise notes the main orchestrator can use for a 0-100 instruction-fit score
 - risks: max 3 bullets
-
-For UNABLE_TO_JUDGE, state the missing evidence and what the main agent should decide or request next.
-Do not approve work based on assumptions.
+- report_file: markdown synthesis report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<task-id>/pogo-verifier.md`.
+- reviewer_decision: PASS | REWORK_REQUIRED | UNABLE_TO_JUDGE
 """

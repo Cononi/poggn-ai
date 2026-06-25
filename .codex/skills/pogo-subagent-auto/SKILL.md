@@ -38,7 +38,7 @@ When `.codex/state/pogo-settings.json` has `subagent.auto=true`:
 
 Thin Mode rules:
 
-- Main orchestrator consumes only `summary`, `changed_files`, `evidence`, and `risks` from Subagent results by default.
+- Main orchestrator consumes `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision` from Subagent results by default.
 - Subagent `summary` is 3 lines or less, `risks` is 3 bullets or less, and `evidence` is command/status proof instead of raw logs.
 - Raw logs, full diffs, and tool traces are requested only for user request, failure, Subagent disagreement, subagent unavailability, or security/data-loss risk.
 - `.codex/state/subagent-evidence.json` stores status fields only. Do not store logs, diffs, prompts, or long analysis in evidence.
