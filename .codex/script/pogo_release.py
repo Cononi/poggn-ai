@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 PROJECT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 GRADLE_VERSION = re.compile(r"^\s*version\s*=\s*[\"']([^\"']+)[\"']\s*$")
+PROJECT_MAP_PATH = ROOT / ".codex" / "project-map.json"
 
 
 def run(args: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -25,6 +26,99 @@ def text_or_none(args: list[str]) -> str | None:
     if proc.returncode:
         return None
     return proc.stdout.strip() or None
+
+
+def _repo_relative(value: str, field: str) -> str:
+    if not value or Path(value).is_absolute() or ".." in Path(value).parts:
+        raise SystemExit(f"project-map {field} must be a repository-relative path")
+    return value.rstrip("/") or "."
+
+
+def load_project_map() -> dict:
+    if not PROJECT_MAP_PATH.exists():
+        return {"version": 1, "projects": []}
+    try:
+        data = json.loads(PROJECT_MAP_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SystemExit(f"invalid project map: {exc}") from exc
+    if not isinstance(data, dict) or data.get("version") != 1:
+        raise SystemExit("project-map version must be 1")
+    projects = data.get("projects")
+    if not isinstance(projects, list):
+        raise SystemExit("project-map projects must be a list")
+    seen: set[str] = set()
+    for project in projects:
+        if not isinstance(project, dict):
+            raise SystemExit("project-map project entries must be objects")
+        name = project.get("name")
+        if not isinstance(name, str) or not PROJECT.fullmatch(name):
+            raise SystemExit("project-map project.name is invalid")
+        if name in seen:
+            raise SystemExit(f"duplicate project-map project: {name}")
+        seen.add(name)
+        raw_paths = project.get("paths", project.get("path"))
+        if isinstance(raw_paths, str):
+            paths = [raw_paths]
+        elif isinstance(raw_paths, list):
+            paths = raw_paths
+        else:
+            raise SystemExit(f"project-map {name}.paths must be a non-empty list")
+        if not paths:
+            raise SystemExit(f"project-map {name}.paths must not be empty")
+        project["paths"] = [_repo_relative(str(item), f"{name}.paths") for item in paths]
+        if "versionSource" in project and project["versionSource"] is not None:
+            project["versionSource"] = _repo_relative(str(project["versionSource"]), f"{name}.versionSource")
+        if "release" in project and not isinstance(project["release"], bool):
+            raise SystemExit(f"project-map {name}.release must be true or false")
+    return data
+
+
+def mapped_project(name: str) -> dict | None:
+    for project in load_project_map().get("projects", []):
+        if project.get("name") == name:
+            return project
+    return None
+
+
+def project_primary_path(project: dict) -> str:
+    paths = project.get("paths") or [project.get("path") or "."]
+    return str(paths[0])
+
+
+def path_matches(changed_file: str, project_path: str) -> bool:
+    normalized = project_path.rstrip("/")
+    if normalized == ".":
+        return True
+    return changed_file == normalized or changed_file.startswith(normalized + "/")
+
+
+def project_matches(project: dict, changed_file: str) -> bool:
+    return any(path_matches(changed_file, project_path) for project_path in project.get("paths", []))
+
+
+def rev_exists(ref: str) -> bool:
+    proc = run(["git", "rev-parse", "--verify", "--quiet", ref])
+    return proc.returncode == 0
+
+
+def default_from_ref() -> str:
+    for ref in ("origin/main", "main", "HEAD~1"):
+        if rev_exists(ref):
+            return ref
+    return "HEAD"
+
+
+def changed_files(from_ref: str | None, to_ref: str | None) -> list[str]:
+    base = from_ref or default_from_ref()
+    target = to_ref or "HEAD"
+    if base == target:
+        return []
+    proc = run(["git", "diff", "--name-only", f"{base}...{target}"])
+    if proc.returncode:
+        proc = run(["git", "diff", "--name-only", f"{base}..{target}"])
+    if proc.returncode:
+        raise SystemExit(proc.stderr.strip() or "unable to collect changed files")
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
 def default_project() -> str:
@@ -39,7 +133,8 @@ def project_name(args: argparse.Namespace) -> str:
 
 
 def project_path(args: argparse.Namespace) -> Path:
-    value = args.path or "."
+    project = mapped_project(args.project) if getattr(args, "project", None) else None
+    value = args.path or (project_primary_path(project) if project else ".")
     path = (ROOT / value).resolve()
     try:
         path.relative_to(ROOT)
@@ -122,8 +217,15 @@ def read_pom(path: Path, out: list[str]) -> None:
         out.append(f"{display_path(pom)}:invalid ({exc})")
 
 
-def version_sources(path: Path) -> list[str]:
+def version_sources(path: Path, project: dict | None = None) -> list[str]:
     out: list[str] = []
+    if project and project.get("versionSource"):
+        source = ROOT / project["versionSource"]
+        if source.exists():
+            out.append(f"{display_path(source)}:{source.read_text(encoding='utf-8').strip()}")
+        else:
+            out.append(f"{project['versionSource']}:missing")
+        return out
     read_package_json(path, out)
     read_version_files(path, out)
     read_gradle(path, out)
@@ -165,6 +267,7 @@ def status(args: argparse.Namespace) -> int:
         print("Not a git worktree", file=sys.stderr)
         return 2
     project = project_name(args)
+    mapped = mapped_project(project)
     path = project_path(args)
     print(f"project: {project}")
     print(f"path: {display_path(path)}")
@@ -174,7 +277,10 @@ def status(args: argparse.Namespace) -> int:
     print(f"head: {text_or_none(['git', 'rev-parse', '--short', 'HEAD']) or 'unknown'}")
     print(f"latest_project_tag: {latest_project_tag(project) or 'none'}")
     print(f"latest_repo_tag: {text_or_none(['git', 'describe', '--tags', '--abbrev=0']) or 'none'}")
-    sources = version_sources(path)
+    if mapped:
+        print("release_enabled: " + str(bool(mapped.get("release", True))).lower())
+        print("mapped_paths: " + ", ".join(mapped.get("paths", [])))
+    sources = version_sources(path, mapped)
     print("version_sources: " + (", ".join(sources) if sources else "none"))
     print("gh: " + (shutil.which("gh") or "not found"))
     return 0
@@ -204,6 +310,49 @@ def notes(args: argparse.Namespace) -> int:
     print("\n## 롤백\n")
     print(f"- 이전 project tag: {base or 'none'}")
     print("- 되돌릴 commit 또는 PR: 확인 필요")
+    return 0
+
+
+def projects(args: argparse.Namespace) -> int:
+    project_map = load_project_map()
+    mapped = project_map.get("projects", [])
+    if not mapped:
+        print("projects: none")
+        return 0
+    for project in mapped:
+        print(
+            "{name}: paths={paths}, release={release}, versionSource={version_source}".format(
+                name=project["name"],
+                paths=",".join(project.get("paths", [])),
+                release=str(bool(project.get("release", True))).lower(),
+                version_source=project.get("versionSource") or "auto",
+            )
+        )
+    return 0
+
+
+def impacted(args: argparse.Namespace) -> int:
+    files = changed_files(args.from_ref, args.to_ref)
+    project_map = load_project_map()
+    matches = [
+        project for project in project_map.get("projects", [])
+        if any(project_matches(project, changed_file) for changed_file in files)
+    ]
+    print("changed_files:")
+    if files:
+        for changed_file in files:
+            print(f"- {changed_file}")
+    else:
+        print("- none")
+    print("impacted_projects:")
+    if matches:
+        for project in matches:
+            release = bool(project.get("release", True))
+            print(f"- {project['name']} release={'yes' if release else 'no'} paths={','.join(project.get('paths', []))}")
+    else:
+        print("- none")
+    releasable = [project["name"] for project in matches if project.get("release", True)]
+    print("release_projects: " + (", ".join(releasable) if releasable else "none"))
     return 0
 
 
@@ -250,6 +399,12 @@ def main(argv: list[str]) -> int:
     n.add_argument("--from", dest="from_ref")
     n.add_argument("--to", dest="to_ref")
     n.set_defaults(fn=notes)
+    p = sub.add_parser("projects")
+    p.set_defaults(fn=projects)
+    i = sub.add_parser("impacted")
+    i.add_argument("--from", dest="from_ref")
+    i.add_argument("--to", dest="to_ref")
+    i.set_defaults(fn=impacted)
     c = sub.add_parser("create")
     add_scope_args(c)
     c.add_argument("--tag")

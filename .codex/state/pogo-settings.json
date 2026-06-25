@@ -11,5 +11,8 @@
   },
   "language": {
     "mode": "ko"
+  },
+  "subagent": {
+    "auto": false
   }
 }

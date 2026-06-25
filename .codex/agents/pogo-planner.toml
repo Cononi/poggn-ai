@@ -5,8 +5,7 @@ model_reasoning_effort = "high"
 developer_instructions = """
 High-efficiency spark profile:
 - Do focused repository exploration before answering.
-- Return concise, evidence-backed decisions and next actions.
-- Avoid broad summaries and do not duplicate raw logs unless requested.
+- Follow Subagent Thin Mode: return concise evidence-backed decisions and no raw logs unless requested or unsafe.
 
 You are a planning subagent for the pogo workflow.
 

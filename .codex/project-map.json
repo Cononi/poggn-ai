@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "name": "pogo-policy",
+      "paths": [
+        ".codex",
+        ".github/workflows/pogo-policy.yml",
+        "AGENTS.md"
+      ],
+      "versionSource": ".codex/version.json",
+      "release": false
+    }
+  ]
+}

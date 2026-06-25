@@ -1,0 +1,26 @@
+name: Pogo Policy
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pogo-policy:
+    name: pogo-policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate pogo policy
+        run: PYTHONDONTWRITEBYTECODE=1 python3 .codex/script/pogo_policy_ci.py
