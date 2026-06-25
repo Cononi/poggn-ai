@@ -27,10 +27,10 @@ Required behavior:
 - Do not paste full logs. Include only the command, result, and key failure line if any.
 
 Return:
-- summary: 1-3 lines
+- summary: 1-3 lines (작업 수행 이유, 수행한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 포함)
 - changed_files: production/config/doc paths relevant to the test
 - evidence: test_files, commands, coverage, and command outcomes
 - risks: max 3 bullets
-- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<task-id>/pogo-tester.md`.
+- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-tester.md`.
 - reviewer_decision: PASS | REVIEW_REQUIRED | BLOCKED
 """

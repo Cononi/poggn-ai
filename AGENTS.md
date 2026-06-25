@@ -10,6 +10,7 @@
 - 작업과 직접 관련된 skill의 `SKILL.md`만 읽고 적용한다. 이름만 보고 추측하지 않는다.
 - 확인하지 않은 파일, 테스트, API, 설정, 실행 결과를 사실처럼 말하지 않는다.
 - 기존 사용자 변경을 되돌리거나 섞지 않는다.
+- 모든 보고서/문서/샘플은 `pogo-settings`의 `lang` 설정을 따른다. `lang=ko`면 한국어, `lang=en`이면 영어, `lang=bilingual`이면 양언어 요약을 포함한다.
 
 ## 시작 판단
 
@@ -68,7 +69,12 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Su
 `subagent.auto=true`이면 `pogo`와 `pogo-subagent-auto` 기준을 따른다.
 `subagent.auto=true`이면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 Subagent의 `summary`, `changed_files`, `evidence`, `risks`, `report_file`만 소비하고, 원시 로그와 전체 diff는 사용자 요청, 실패, 불일치, 보안/데이터 손실 위험이 있을 때만 좁게 재확인한다.
 Subagent 결과는 `summary` 3줄 이하, `changed_files`, `evidence`, `risks` 3개 이하로 요약한다. 여러 Subagent 결과를 병합할 때도 메인은 결론, 충돌 여부, 다음 조치만 정리한다.
-보고서 본문은 검토를 위해 별도 문서(예: `.codex/state/subagent-reports/<task-id>/<agent-name>.md`)로 남기며, `report_file`은 Hook 증거(`.codex/state/subagent-evidence.json`)가 아닌 작업별 보고서 본문이다. `.codex/state/subagent-evidence.json`에는 hook 규칙이 요구하는 `version/branch/head/agents/changedFiles`만 유지한다.
+- 보고서 본문은 검토를 위해 별도 문서(예: `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md`)로 남기며, `report_file`은 Hook 증거(`.codex/state/subagent-evidence.json`)가 아닌 작업별 보고서 본문이다.
+- `<YYYY-MM-DD>`와 `<HHMMSS>`는 UTC 또는 명시된 timezone 기준으로 기록한다.
+- `<sanitized-branch>`는 파일시스템 안전 문자로 정규화한 브랜치명을 사용한다.
+- 각 보고서는 다음 항목을 반드시 남긴다: 작업 수행 이유, 처리한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도.
+- 최종 검토 종합 문서는 각 개별 보고서의 위 항목을 근거로 통합해 작성한다.
+- `.codex/state/subagent-evidence.json`에는 hook 규칙이 요구하는 `version/branch/head/agents/changedFiles`만 유지한다.
 
 ## Git
 

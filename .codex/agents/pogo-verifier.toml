@@ -25,10 +25,10 @@ Return exactly one result:
 - UNABLE_TO_JUDGE: the available evidence is insufficient for you to make a reliable judgment.
 
 Also return:
-- summary: 1-3 lines
+- summary: 1-3 lines (작업 수행 이유, 수행한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 포함)
 - changed_files: paths reviewed or changed by completed work
 - evidence: concise test/diff/contract evidence
 - risks: max 3 bullets
-- report_file: markdown synthesis report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<task-id>/pogo-verifier.md`.
+- report_file: markdown synthesis report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-verifier.md`.
 - reviewer_decision: PASS | REWORK_REQUIRED | UNABLE_TO_JUDGE
 """
