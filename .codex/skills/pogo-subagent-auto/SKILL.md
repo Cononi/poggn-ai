@@ -61,7 +61,7 @@ Rules:
 - `branch` must match the current branch.
 - `head` must match the current `HEAD`.
 - `agents` must include PASS from `pogo-verifier` or `pogo-tester`.
-- `changedFiles` must match the current git changed file list.
+- `changedFiles` must match the current git changed file list. It can be an empty list when the current git changes are empty.
 - evidence 24 hours or older is rejected as a secondary guard.
 - stale evidence is cleared with `$pogo-settings evidence clear`.
 

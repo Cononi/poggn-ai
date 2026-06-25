@@ -280,8 +280,8 @@ def subagent_evidence_status(strict: bool = True) -> tuple[bool, str]:
     if not has_pass:
         return False, "requires PASS evidence from pogo-verifier or pogo-tester"
     changed_files = data.get("changedFiles")
-    if not isinstance(changed_files, list) or not changed_files:
-        return False, "changedFiles must be a non-empty list"
+    if not isinstance(changed_files, list):
+        return False, "changedFiles must be a list"
     if not all(isinstance(item, str) and item.strip() for item in changed_files):
         return False, "changedFiles must contain non-empty strings"
     if not strict:

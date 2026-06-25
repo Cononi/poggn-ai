@@ -61,7 +61,7 @@ $pogo-subagent-auto [status|on|off|toggle]  # 기본: status
 
 `branch`는 현재 branch와 같아야 하고, `head`는 현재 `HEAD`와 같아야 한다.
 `agents`에는 `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과가 하나 이상 필요하다.
-`changedFiles`는 현재 git 변경 파일 목록과 같아야 한다.
+`changedFiles`는 현재 git 변경 파일 목록과 같아야 하며, 변경 파일이 없다면 `[]`가 될 수 있다.
 evidence 파일 수정 시간이 24시간 이상이면 보조 stale guard로 거부한다. 오래된 증거는 `$pogo-settings evidence clear`로 삭제한다.
 
 ## Lang 정책
