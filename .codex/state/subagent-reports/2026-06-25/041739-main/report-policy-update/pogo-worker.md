@@ -1,0 +1,21 @@
+- summary: 사용자가 추가한 Subagent 보고서 정책(언어 설정 반영, 날짜/시간/브랜치 기반 경로, 작업당 필수 항목, 최종 종합 항목 요건)을 AGENTS, pogo/pogo-subagent-auto skill, 및 에이전트 toml 샘플에 반영했습니다. 변경 범위는 지정된 문서/샘플 파일로 제한했습니다.
+- changed_files:
+  - AGENTS.md
+  - .codex/skills/pogo/SKILL.md
+  - .codex/skills/pogo-subagent-auto/SKILL.md
+  - .codex/agents/pogo-worker.toml
+  - .codex/agents/pogo-tester.toml
+  - .codex/agents/pogo-verifier.toml
+  - .codex/state/subagent-reports/rework-required-fix/pogo-worker.md
+  - .codex/state/subagent-reports/rework-required-fix/pogo-tester.md
+  - .codex/state/subagent-reports/final-review/pogo-verifier.md
+- evidence:
+  - sed/perl/shell 편집을 통해 AGENTS의 보고서 경로 템플릿 블록과 언어 규칙을 갱신했습니다.
+  - pogo/pogo-subagent-auto SKILL 및 에이전트 toml의 `report_file` 설명을 `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md`로 통일했습니다.
+  - 샘플/최종 보고서 파일에서 보고 항목(작업 이유, 작업 내용, 결과, 검토자 결과, 재검토 필요성, 완성도)을 반영했습니다.
+- risks:
+  - 실제 Subagent 실행 엔진/훅에서 새 경로 템플릿이 강제되는지 별도 동적 검증은 아직 수행되지 않았습니다.
+  - 보고서 템플릿의 `summary_reason` 필드 추가가 일부 런타임에서 허용되지 않을 수 있어, 필요 시 최종 형식 합의가 필요합니다.
+- report_file: .codex/state/subagent-reports/2026-06-25/041739-main/report-policy-update/pogo-worker.md
+- report_timestamp_utc: 2026-06-25T04:17:39Z
+- reviewer_decision: PASS
