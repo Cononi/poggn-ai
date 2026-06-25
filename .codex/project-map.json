@@ -9,7 +9,7 @@
         "AGENTS.md"
       ],
       "versionSource": ".codex/version.json",
-      "release": false
+      "release": true
     }
   ]
 }

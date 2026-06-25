@@ -217,12 +217,24 @@ def read_pom(path: Path, out: list[str]) -> None:
         out.append(f"{display_path(pom)}:invalid ({exc})")
 
 
+def read_version_source(source: Path) -> str:
+    if source.name in {"package.json", "version.json"}:
+        data = json.loads(source.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or not isinstance(data.get("version"), str):
+            raise ValueError("version key missing")
+        return data["version"]
+    return source.read_text(encoding="utf-8").strip()
+
+
 def version_sources(path: Path, project: dict | None = None) -> list[str]:
     out: list[str] = []
     if project and project.get("versionSource"):
         source = ROOT / project["versionSource"]
         if source.exists():
-            out.append(f"{display_path(source)}:{source.read_text(encoding='utf-8').strip()}")
+            try:
+                out.append(f"{display_path(source)}:{read_version_source(source)}")
+            except Exception as exc:
+                out.append(f"{display_path(source)}:invalid ({exc})")
         else:
             out.append(f"{project['versionSource']}:missing")
         return out
@@ -254,6 +266,71 @@ def latest_project_tag(project: str) -> str | None:
         return None
     tags = proc.stdout.splitlines()
     return tags[0] if tags else None
+
+
+def current_version(path: Path, project: dict | None) -> str | None:
+    sources = version_sources(path, project)
+    if not sources:
+        return None
+    value = sources[0].rsplit(":", 1)[-1].strip()
+    return value if SEMVER.fullmatch(value) else None
+
+
+def collect_commits(rev_range: str, path: Path) -> list[tuple[str, str]]:
+    proc = run([
+        "git",
+        "log",
+        "--no-merges",
+        "--pretty=format:%h%x1f%s",
+        rev_range,
+        "--",
+        display_path(path),
+    ])
+    if proc.returncode:
+        raise SystemExit(proc.stderr.strip() or "Unable to collect git log")
+    commits: list[tuple[str, str]] = []
+    for line in proc.stdout.splitlines():
+        if "\x1f" not in line:
+            continue
+        short, subject = line.split("\x1f", 1)
+        commits.append((short, subject))
+    return commits
+
+
+def collect_changed_files(base: str | None, target: str, path: Path) -> list[str]:
+    files = changed_files(base, target)
+    scoped = [item for item in files if path_matches(item, display_path(path))]
+    return scoped or files
+
+
+def category_for(subject: str) -> str:
+    lowered = subject.lower()
+    if lowered.startswith("feat"):
+        return "추가"
+    if lowered.startswith("fix"):
+        return "수정"
+    if lowered.startswith(("docs", "chore", "ci", "build")):
+        return "운영/문서"
+    if lowered.startswith(("refactor", "perf")):
+        return "개선"
+    if lowered.startswith("test"):
+        return "검증"
+    return "변경"
+
+
+def print_commit_groups(commits: list[tuple[str, str]]) -> None:
+    groups = ["추가", "수정", "개선", "검증", "운영/문서", "변경"]
+    grouped = {name: [] for name in groups}
+    for short, subject in commits:
+        grouped[category_for(subject)].append((short, subject))
+    for name in groups:
+        entries = grouped[name]
+        if not entries:
+            continue
+        print(f"### {name}\n")
+        for short, subject in entries:
+            print(f"- {subject} (`{short}`)")
+        print()
 
 
 def add_scope_args(parser: argparse.ArgumentParser) -> None:
@@ -288,28 +365,53 @@ def status(args: argparse.Namespace) -> int:
 
 def notes(args: argparse.Namespace) -> int:
     project = project_name(args)
+    mapped = mapped_project(project)
     path = project_path(args)
     base = args.from_ref or latest_project_tag(project)
     target = args.to_ref or "HEAD"
     rev_range = f"{base}..{target}" if base else target
-    cmd = ["git", "log", "--no-merges", "--pretty=format:- %s (%h)", rev_range, "--", display_path(path)]
-    proc = run(cmd)
-    if proc.returncode:
-        print(proc.stderr.strip() or "Unable to collect git log", file=sys.stderr)
-        return proc.returncode
+    version = current_version(path, mapped)
+    if not version:
+        print("release version source must contain a valid semver version", file=sys.stderr)
+        return 2
+    if not args.verify:
+        print("--verify is required so release notes include actual verification evidence", file=sys.stderr)
+        return 2
+    commits = collect_commits(rev_range, path)
+    files = collect_changed_files(base, target, path)
     print(f"## 프로젝트\n\n- `{project}` ({display_path(path)})\n")
+    print("## 버전\n")
+    print(f"- 현재 버전: `{version or 'unknown'}`")
+    print(f"- 태그 정책: `{project}-v<semver>`")
+    print(f"- 기준 ref/tag: `{base or 'none'}`\n")
     print("## 요약\n")
-    print("- 변경 내용을 확인하세요.\n")
+    if commits:
+        for _, subject in commits[:3]:
+            print(f"- {subject}")
+    else:
+        print("- 변경 commit 없음")
+    print()
     print("## 변경 사항\n")
-    print(proc.stdout.strip() or "- 변경 commit 없음")
+    if commits:
+        print_commit_groups(commits)
+    else:
+        print("- 변경 commit 없음\n")
+    print("## 변경 파일\n")
+    if files:
+        for item in files:
+            print(f"- `{item}`")
+    else:
+        print("- 변경 파일 없음")
     print("\n## 검증\n")
-    print("- `<command>`: NOT RUN")
+    for item in args.verify:
+        print(f"- `{item}`")
     print("\n## 호환성 / 마이그레이션\n")
-    print("- breaking change 여부: 확인 필요")
-    print("- 설정 파일 변경 여부: 확인 필요")
+    policy_changed = any(item.startswith((".codex/", ".github/", "AGENTS.md")) for item in files)
+    print("- 데이터베이스/외부 API 마이그레이션: 없음")
+    print(f"- 운영 정책 또는 설정 변경: {'있음' if policy_changed else '없음'}")
     print("\n## 롤백\n")
-    print(f"- 이전 project tag: {base or 'none'}")
-    print("- 되돌릴 commit 또는 PR: 확인 필요")
+    print(f"- 기준 ref/tag: `{base or 'none'}`")
+    print(f"- 문제가 있으면 `{target}`에 포함된 변경 commit을 revert하고 새 release를 생성하세요.")
     return 0
 
 
@@ -398,6 +500,7 @@ def main(argv: list[str]) -> int:
     add_scope_args(n)
     n.add_argument("--from", dest="from_ref")
     n.add_argument("--to", dest="to_ref")
+    n.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
     n.set_defaults(fn=notes)
     p = sub.add_parser("projects")
     p.set_defaults(fn=projects)
