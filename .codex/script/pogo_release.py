@@ -276,7 +276,13 @@ def current_version(path: Path, project: dict | None) -> str | None:
     return value if SEMVER.fullmatch(value) else None
 
 
-def collect_commits(rev_range: str, path: Path) -> list[tuple[str, str]]:
+def project_scope_paths(project: dict | None, path: Path) -> list[str]:
+    if project and project.get("paths"):
+        return [str(item) for item in project["paths"]]
+    return [display_path(path)]
+
+
+def collect_commits(rev_range: str, paths: list[str]) -> list[tuple[str, str]]:
     proc = run([
         "git",
         "log",
@@ -284,23 +290,26 @@ def collect_commits(rev_range: str, path: Path) -> list[tuple[str, str]]:
         "--pretty=format:%h%x1f%s",
         rev_range,
         "--",
-        display_path(path),
+        *paths,
     ])
     if proc.returncode:
         raise SystemExit(proc.stderr.strip() or "Unable to collect git log")
     commits: list[tuple[str, str]] = []
+    seen: set[str] = set()
     for line in proc.stdout.splitlines():
         if "\x1f" not in line:
             continue
         short, subject = line.split("\x1f", 1)
+        if short in seen:
+            continue
+        seen.add(short)
         commits.append((short, subject))
     return commits
 
 
-def collect_changed_files(base: str | None, target: str, path: Path) -> list[str]:
+def collect_changed_files(base: str | None, target: str, paths: list[str]) -> list[str]:
     files = changed_files(base, target)
-    scoped = [item for item in files if path_matches(item, display_path(path))]
-    return scoped or files
+    return [item for item in files if any(path_matches(item, path) for path in paths)]
 
 
 def category_for(subject: str) -> str:
@@ -377,9 +386,10 @@ def notes(args: argparse.Namespace) -> int:
     if not args.verify:
         print("--verify is required so release notes include actual verification evidence", file=sys.stderr)
         return 2
-    commits = collect_commits(rev_range, path)
-    files = collect_changed_files(base, target, path)
-    print(f"## 프로젝트\n\n- `{project}` ({display_path(path)})\n")
+    scope_paths = project_scope_paths(mapped, path)
+    commits = collect_commits(rev_range, scope_paths)
+    files = collect_changed_files(base, target, scope_paths)
+    print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
     print("## 버전\n")
     print(f"- 현재 버전: `{version or 'unknown'}`")
     print(f"- 태그 정책: `{project}-v<semver>`")
