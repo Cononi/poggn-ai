@@ -7,8 +7,9 @@ description: `$pogo-subagent-auto` 상태와 정책을 확인하거나 수정할
 
 ## Purpose
 
-`$pogo-subagent-auto` controls whether development, review, QA, and code-change work must use Subagents.
-It is a focused policy skill. `pogo-settings` remains the shared settings and hook implementation owner.
+`$pogo-subagent-auto` controls whether development, review, QA, and code-change work should primarily use Subagents.
+It is a focused policy flag for the main orchestrator, not a hook-driven spawn mechanism.
+`pogo-settings` remains the settings owner for storage and command parsing.
 
 ## Command Surface
 
@@ -25,13 +26,15 @@ Bare `$pogo-subagent-auto` means `status`.
 
 ## Enforcement Model
 
+`subagent.auto` is a policy switch read by the main orchestrator.
 Hooks cannot spawn Subagents directly.
-They can block shortcut prompts and pre-tool git commands.
+Current hook limits are: shortcut prompt blocking and pre-tool git/evidence gate checks.
+Actual parallel/Subagent execution must be started by main via multi-agent tools.
 
 When `pogo-state/pogo-settings.json` has `subagent.auto=true`:
 
-1. Main orchestrator must start with a short task brief (goal, scope, delegation targets, expected evidence) and then start at least one relevant Subagent for development/review/QA work.
-2. Main orchestrator should not run broad repo exploration, raw `git diff`/`git log` review, or full verification before delegation.
+1. Main orchestrator must post a pre-work plan report (goal, scope, delegation targets, expected evidence) and then start at least one relevant Subagent for development/review/QA work.
+2. Main orchestrator should minimize direct exploration and delegate first; it should start with least direct analysis and immediate Subagent launch.
 3. Main orchestrator may do direct work only for: user request, confirmed failure, Subagent disagreement, security/data-loss risk, or unavailable Subagent.
 4. `pogo-verifier` or `pogo-tester` must produce PASS evidence before completion.
 5. Before git `commit`, `push`, or `merge`, the hook requires `pogo-state/subagent-evidence.json`.
@@ -43,7 +46,7 @@ Thin Mode rules:
 - `summary` must include: reason for work, done work, outcome, reviewer-agent result, recheck-needed flag, and completion quality.
 - Report language follows `pogo-state/pogo-settings.json` `lang` (ko/en/bilingual with bilingual summaries).
 - Subagent `summary` is 3 lines or less, `risks` is 3 bullets or less, and `evidence` is command/status proof instead of raw logs.
-- Raw logs, full diffs, and tool traces are requested only for user request, failure, Subagent disagreement, subagent unavailability, or security/data-loss risk.
+- Raw logs, full diffs, and tool traces are requested only for user request, failure, Subagent disagreement, Subagent unavailability, or security/data-loss risk.
 - `pogo-state/subagent-evidence.json` stores status fields only. Do not store logs, diffs, prompts, or long analysis in evidence.
 
 Evidence contract:
