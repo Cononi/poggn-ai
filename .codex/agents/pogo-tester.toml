@@ -31,6 +31,6 @@ Return:
 - changed_files: production/config/doc paths relevant to the test
 - evidence: test_files, commands, coverage, and command outcomes
 - risks: max 3 bullets
-- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-tester.md`.
+- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-tester.md`.
 - reviewer_decision: PASS | REVIEW_REQUIRED | BLOCKED
 """

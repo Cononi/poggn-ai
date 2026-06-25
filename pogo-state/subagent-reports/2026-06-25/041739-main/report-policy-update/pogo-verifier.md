@@ -13,10 +13,10 @@ changed_files:
 - .codex/agents/pogo-worker.toml
 - .codex/agents/pogo-tester.toml
 - .codex/agents/pogo-verifier.toml
-- .codex/state/subagent-reports/rework-required-fix/pogo-worker.md
-- .codex/state/subagent-reports/rework-required-fix/pogo-tester.md
-- .codex/state/subagent-reports/final-review/pogo-verifier.md
-- .codex/state/subagent-reports/2026-06-25/041739-main/report-policy-update/pogo-worker.md
+- pogo-state/subagent-reports/rework-required-fix/pogo-worker.md
+- pogo-state/subagent-reports/rework-required-fix/pogo-tester.md
+- pogo-state/subagent-reports/final-review/pogo-verifier.md
+- pogo-state/subagent-reports/2026-06-25/041739-main/report-policy-update/pogo-worker.md
 
 evidence:
 - AGENTS 및 SKILL 문서에서 `lang`, `report_file` 경로 템플릿, `작업 수행 이유/작업/결과/재검토/완성도` 6요소가 요구로 명시됨을 확인.
@@ -29,5 +29,5 @@ risks:
 - runtime에서 실제 `pogo-verifier`/`pogo-tester`가 이 정책을 강제하는지 훅 및 생성 스크립트 측면의 추가 검증이 필요.
 - 동일 정책의 필드명이 Subagent 출력 스펙(`summary_reason` 등)과 충돌할 가능성을 점검해야 함.
 
-report_file: .codex/state/subagent-reports/2026-06-25/041739-main/report-policy-update/pogo-verifier.md
+report_file: pogo-state/subagent-reports/2026-06-25/041739-main/report-policy-update/pogo-verifier.md
 reviewer_decision: REWORK_REQUIRED

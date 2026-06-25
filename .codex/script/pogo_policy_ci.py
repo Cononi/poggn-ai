@@ -56,7 +56,7 @@ def check_toml() -> None:
 
 
 def check_settings_json() -> None:
-    path = ROOT / ".codex" / "state" / "pogo-settings.json"
+    path = ROOT / "pogo-state" / "pogo-settings.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("pogo-settings root must be an object")
@@ -65,9 +65,9 @@ def check_settings_json() -> None:
 
 
 def check_no_committed_local_evidence() -> None:
-    result = git("ls-files", "--error-unmatch", ".codex/state/subagent-evidence.json")
+    result = git("ls-files", "--error-unmatch", "pogo-state/subagent-evidence.json")
     if result.returncode == 0:
-        raise ValueError(".codex/state/subagent-evidence.json must stay local and untracked")
+        raise ValueError("pogo-state/subagent-evidence.json must stay local and untracked")
 
 
 def check_project_map() -> None:

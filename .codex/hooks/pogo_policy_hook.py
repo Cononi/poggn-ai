@@ -23,7 +23,6 @@ from _pogo_settings import (
 )
 
 GIT_TARGETS = ("commit", "push", "merge")
-SHELL_SEPARATORS = {";", "&", "&&", "|", "||", "(", ")"}
 GIT_OPTIONS_WITH_VALUE = {
     "-C",
     "-c",
@@ -32,6 +31,19 @@ GIT_OPTIONS_WITH_VALUE = {
     "--namespace",
     "--exec-path",
     "--config-env",
+}
+SHELL_SEPARATORS = {";", "&", "&&", "|", "||", "(", ")", "!"}
+WRITE_COMMAND_HINTS = {
+    "apply_patch",
+    "cp",
+    "mv",
+    "perl",
+    "python",
+    "rm",
+    "rmdir",
+    "sed",
+    "tee",
+    "touch",
 }
 
 
@@ -85,6 +97,9 @@ def run_shortcut(prompt: str) -> dict[str, str] | None:
     if parts[0] == "$pogo-subagent-auto":
         args = parts[1:] if len(parts) > 1 else ["status"]
         return block(run_script([sys.executable, str(script), "subagent", "auto", *args]))
+    if parts[0] == "$pogo-codex-edit":
+        args = parts[1:] if len(parts) > 1 else ["status"]
+        return block(run_script([sys.executable, str(script), "codex-edit", *args]))
     return None
 
 
@@ -142,6 +157,51 @@ def git_subcommands(text: str) -> set[str]:
     return commands
 
 
+def _is_write_command(token: str) -> bool:
+    return token in WRITE_COMMAND_HINTS
+
+
+def _contains_protected_path(value: str) -> bool:
+    if not value:
+        return False
+    return (
+        value == "AGENTS.md"
+        or value == "./AGENTS.md"
+        or value.endswith("/AGENTS.md")
+        or value.startswith(".codex/")
+        or value.startswith("./.codex/")
+        or value == ".codex"
+        or value == "./.codex"
+        or "/.codex/" in value
+    )
+
+
+def _has_redirect_operator(tokens: list[str]) -> bool:
+    for index, token in enumerate(tokens):
+        if token in {">", ">>", "1>", "2>", "&>", "1>>", "2>>"}:
+            if index + 1 >= len(tokens):
+                continue
+            if _contains_protected_path(tokens[index + 1]):
+                return True
+            continue
+        if token.startswith(">") and len(token) > 1 and not token.startswith("2>&1"):
+            if _contains_protected_path(token[1:]):
+                return True
+    return False
+
+
+def _command_targets_protected(tokens: list[str]) -> bool:
+    joined = " ".join(tokens)
+    if ".codex/" not in joined and "./.codex/" not in joined and "AGENTS.md" not in joined:
+        return False
+    for index, token in enumerate(tokens):
+        if token in SHELL_SEPARATORS:
+            continue
+        if _is_write_command(token) and any(_contains_protected_path(item) for item in tokens[index + 1 :]):
+            return True
+    return _has_redirect_operator(tokens)
+
+
 def deny_message(mode: str, key: str) -> str:
     en = (
         f"Blocked by pogo settings: git {key} automation is off. "
@@ -160,8 +220,25 @@ def deny_message(mode: str, key: str) -> str:
     return en
 
 
+def codex_edit_deny_message(mode: str) -> str:
+    en = (
+        "Blocked by pogo settings: Pogo Codex Edit is off. Editing files under .codex/ "
+        "or AGENTS.md is blocked. Use `$pogo-codex-edit on` or `$pogo-settings codex-edit on` "
+        "to allow changes."
+    )
+    ko = (
+        "pogo settings가 Codex Edit를 차단했습니다. .codex/ 내부와 AGENTS.md 수정이 금지됩니다. "
+        "`$pogo-codex-edit on` 또는 `$pogo-settings codex-edit on`으로 허용을 켜세요."
+    )
+    if mode == "ko":
+        return ko
+    if mode == "bilingual":
+        return f"{ko}\n{en}"
+    return en
+
+
 def subagent_evidence_deny_message(mode: str, key: str, detail: str) -> str:
-    path = ".codex/state/subagent-evidence.json"
+    path = "pogo-state/subagent-evidence.json"
     en = (
         f"Blocked by pogo subagent-auto: git {key} requires subagent evidence. "
         f"Create {path} with PASS evidence from pogo-verifier or pogo-tester. Detail: {detail}"
@@ -182,6 +259,13 @@ def run_pre_tool_use() -> int:
     payload = read_payload()
     text = command_text(payload)
     mode = language_summary(state)
+
+    if not bool(state.get("codexEdit", True)):
+        tokens = shell_tokens(text)
+        if _command_targets_protected(tokens):
+            print(codex_edit_deny_message(mode), file=sys.stderr)
+            return 1
+
     commands = git_subcommands(text)
     for key in GIT_TARGETS:
         if key in commands:
@@ -211,11 +295,11 @@ def run_session_start() -> int:
         else:
             auto_note = " Subagents are required for development/review/QA tasks."
     if mode == "ko":
-        print(f"Pogo 설정: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
+        print(f"Pogo 설정: {git_summary(state)}, {subagent_auto}, lang={mode}. Pogo Codex Edit={'on' if state.get('codexEdit', True) else 'off'}." + auto_note)
     elif mode == "bilingual":
-        print(f"Pogo 설정 / Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
+        print(f"Pogo 설정 / Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}, Pogo Codex Edit={'on' if state.get('codexEdit', True) else 'off'}." + auto_note)
     else:
-        print(f"Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}.{auto_note}")
+        print(f"Pogo settings: {git_summary(state)}, {subagent_auto}, lang={mode}, Pogo Codex Edit={'on' if state.get('codexEdit', True) else 'off'}." + auto_note)
     return 0
 
 

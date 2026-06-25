@@ -29,6 +29,6 @@ Also return:
 - changed_files: paths reviewed or changed by completed work
 - evidence: concise test/diff/contract evidence
 - risks: max 3 bullets
-- report_file: markdown synthesis report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-verifier.md`.
+- report_file: markdown synthesis report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-verifier.md`.
 - reviewer_decision: PASS | REWORK_REQUIRED | UNABLE_TO_JUDGE
 """

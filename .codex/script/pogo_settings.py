@@ -5,10 +5,10 @@ import sys
 from _pogo_settings import (
     VALID_GIT_TARGETS,
     VALID_LANGUAGES,
+    clear_subagent_evidence,
     git_summary,
     language_summary,
     load_state,
-    clear_subagent_evidence,
     save_state,
     subagent_auto_summary,
     subagent_evidence_status,
@@ -27,8 +27,18 @@ COMMANDS = """  $pogo-settings
   $pogo-settings lang ko|en|bilingual
   $pogo-settings subagent status
   $pogo-settings subagent auto on|off|toggle
+  $pogo-settings codex-edit status
+  $pogo-settings codex-edit on|off|toggle
   $pogo-settings evidence status|clear
   $pogo-subagent-auto [status|on|off|toggle]  # 기본: status"""
+
+
+def onoff(value: bool) -> str:
+    return "on" if value else "off"
+
+
+def codex_edit_summary(state: dict) -> str:
+    return onoff(bool(state.get("codexEdit", True)))
 
 
 def lang_mode(state: dict) -> str:
@@ -46,6 +56,8 @@ def label(state: dict, key: str) -> str:
         "lang_updated": "Lang 설정 업데이트",
         "subagent": "Subagent auto 설정",
         "subagent_updated": "Subagent auto 업데이트",
+        "codex_edit": "Codex Edit 설정",
+        "codex_edit_updated": "Codex Edit 설정 업데이트",
         "evidence": "Subagent evidence",
         "evidence_cleared": "Subagent evidence 삭제",
     }
@@ -58,6 +70,8 @@ def label(state: dict, key: str) -> str:
         "lang_updated": "Pogo settings lang updated",
         "subagent": "Pogo settings subagent auto",
         "subagent_updated": "Pogo settings subagent auto updated",
+        "codex_edit": "Pogo Codex Edit",
+        "codex_edit_updated": "Pogo Codex Edit updated",
         "evidence": "Pogo settings subagent evidence",
         "evidence_cleared": "Pogo settings subagent evidence cleared",
     }
@@ -72,7 +86,7 @@ def usage_text() -> str:
     state = load_state()
     return (
         f"{label(state, 'usage_title')}: "
-        f"{git_summary(state)}, {subagent_auto_summary(state)}, lang={language_summary(state)}\n\n"
+        f"{git_summary(state)}, {subagent_auto_summary(state)}, lang={language_summary(state)}, codex-edit={codex_edit_summary(state)}\n\n"
         f"{label(state, 'commands')}:\n{COMMANDS}"
     ).rstrip()
 
@@ -154,13 +168,32 @@ def show_subagent() -> int:
 def set_subagent_auto(value: str) -> int:
     state = load_state()
     if value == "toggle":
-        state["subagent"]["auto"] = not bool(state["subagent"].get("auto"))
+        state["subagent"]["auto"] = not bool(state.get("subagent", {}).get("auto"))
     elif value in VALID_VALUES:
         state["subagent"]["auto"] = VALID_VALUES[value]
     else:
         return usage_error()
     save_state(state)
     print(f"{label(state, 'subagent_updated')}: {subagent_auto_summary(state)}")
+    return 0
+
+
+def show_codex_edit() -> int:
+    state = load_state()
+    print(f"{label(state, 'codex_edit')}: {codex_edit_summary(state)}")
+    return 0
+
+
+def set_codex_edit(value: str) -> int:
+    if value not in VALID_VALUES and value != "toggle":
+        return usage_error()
+    state = load_state()
+    if value == "toggle":
+        state["codexEdit"] = not bool(state.get("codexEdit", True))
+    else:
+        state["codexEdit"] = VALID_VALUES[value]
+    save_state(state)
+    print(f"{label(state, 'codex_edit_updated')}: {codex_edit_summary(state)}")
     return 0
 
 
@@ -208,6 +241,13 @@ def main(argv: list[str]) -> int:
                 return show_subagent()
             if len(args) == 2:
                 return set_subagent_auto(args[1])
+        return usage_error()
+    if argv[:1] == ["codex-edit"]:
+        args = argv[1:]
+        if not args or args == ["status"]:
+            return show_codex_edit()
+        if len(args) == 1:
+            return set_codex_edit(args[0])
         return usage_error()
     if argv[:1] == ["evidence"]:
         args = argv[1:]

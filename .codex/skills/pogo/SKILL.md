@@ -42,15 +42,15 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 
 - 사용한다: 코드 수정, 버그 수정, 기능 개발, 코드베이스 탐색, 테스트/로그 분석, 리뷰, 여러 독립 작업의 병렬 구현.
 - 사용하지 않는다: 문서 한두 줄 수정, 단순 질문 답변, 명령 출력 확인, 요구사항이 불명확한 작업, 동시 편집 충돌 가능성이 병렬 이점보다 큰 작업.
-- 단, `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
-- `.codex/state/pogo-settings.json`의 `subagent.auto`가 `true`이면 메인 오케스트레이터는 작업 브리프(목표/범위/증거 포인트)를 먼저 작성하고 관련 Subagent를 즉시(가능하면 병렬로) 실행한다.
+- 단, `pogo-state/pogo-settings.json`의 `subagent.auto`가 `true`이면 개발/수정/리뷰/QA 작업에서 Single Agent 예외를 쓰지 않는다.
+- `pogo-state/pogo-settings.json`의 `subagent.auto`가 `true`이면 메인 오케스트레이터는 작업 브리프(목표/범위/증거 포인트)를 먼저 작성하고 관련 Subagent를 즉시(가능하면 병렬로) 실행한다.
 - subagent auto가 켜져 있으면 메인 에이전트는 구현 전 최소 1개 이상의 관련 Subagent를 시작해야 하며, 분리 가능한 탐색/구현/검증은 병렬로 진행한다.
 - subagent auto가 켜져 있으면 git 상태 확인, commit, push, merge, release 같은 Git 실행 작업은 `pogo-git-agent`에 우선 위임한다. 메인 에이전트는 승인 범위, 보호 규칙 우회 여부, 최종 보고만 판단한다.
 - subagent auto가 켜져 있으면 Subagent Thin Mode를 기본으로 사용한다. 메인 에이전트는 원시 로그, 전체 diff, tool trace를 기본 재열람하지 않고 Subagent의 `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision`을 소비한다.
-- Subagent 결과의 `report_file`은 `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` 형식이어야 하며, 작성 언어는 `.codex/state/pogo-settings.json`의 `lang`을 따른다. (lang=bilingual은 양언어 요약 포함)
+- Subagent 결과의 `report_file`은 `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` 형식이어야 하며, 작성 언어는 `pogo-state/pogo-settings.json`의 `lang`을 따른다. (lang=bilingual은 양언어 요약 포함)
 - Thin Mode에서 원시 로그나 전체 diff 재확인은 사용자 요청, 실패, Subagent 간 불일치, 보안/데이터 손실 위험이 있을 때만 해당 파일/명령으로 좁게 수행한다.
 - `pogo-git-agent`가 Git 작업을 처리해도 `git commit/push/merge` 사전 hook은 `pogo-verifier` 또는 `pogo-tester`의 PASS evidence를 요구한다.
-- hook은 Subagent 도구를 직접 실행하지 않는다. hook은 `$pogo-subagent-auto` shortcut을 `decision: block`으로 처리해 상태 변경/출력을 담당한다. `subagent.auto=true`이면 git commit/push/merge 전에 `.codex/state/subagent-evidence.json`의 PASS 증거를 요구한다.
+- hook은 Subagent 도구를 직접 실행하지 않는다. hook은 `$pogo-subagent-auto` shortcut을 `decision: block`으로 처리해 상태 변경/출력을 담당한다. `subagent.auto=true`이면 git commit/push/merge 전에 `pogo-state/subagent-evidence.json`의 PASS 증거를 요구한다.
 - `$pogo-subagent-auto`, `$pogo-settings` 같은 hook shortcut이나 단순 상태 출력처럼 Subagent가 실질 작업 단위를 가질 수 없는 경우만 예외로 둔다.
 - 에이전트 방식은 Single Agent와 Multi Agent 중 하나로 판단하되, 메인 에이전트는 추천 방식, 이유, 비용/위험, 진행 방식을 함께 제시한다.
 - 모델은 공식 Codex 모델 ID인 `gpt-5.3-codex-spark`를 사용한다. 단, 이 모델을 사용할 수 없는 환경이면 중단하고 사용 가능 모델 확인을 요청한다.
@@ -91,9 +91,9 @@ Codex 공식 용어는 Subagents다. 사용자가 Multi Agent라고 말하면 Co
 6. 메인 에이전트는 작업지시와 결과의 유사도/완성도를 0-100으로 판단한다. 95 미만이면 이유와 최소 재작업 범위를 지정해 다시 지시한다.
 7. 95 이상이고 리팩터링 필요성이 확인된 경우에만 `pogo-refactorer`에게 최소 파일 목록, 리팩터링 목적, 보존해야 할 동작을 전달한다.
 8. 최종 단계는 `pogo-tester`에게 넘긴다. 메인은 기능 요약, 변경 파일, 테스트 초점, 관련 테스트 경로만 간결하게 전달한다.
-10. Subagents는 `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision`을 3개 항목 이하로 반환한다. `summary`는 작업 수행 이유, 수행한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 모두 텍스트로 남긴다. report_file은 `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` 형식으로 작성한다. 언어는 `pogo-settings`의 `lang` 설정(ko/en/bilingual)에 맞춘다. 원시 로그, 전체 diff, 장문 분석은 기본 반환하지 않는다.
+10. Subagents는 `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision`을 3개 항목 이하로 반환한다. `summary`는 작업 수행 이유, 수행한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 모두 텍스트로 남긴다. report_file은 `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` 형식으로 작성한다. 언어는 `pogo-settings`의 `lang` 설정(ko/en/bilingual)에 맞춘다. 원시 로그, 전체 diff, 장문 분석은 기본 반환하지 않는다.
 11. 메인 에이전트는 여러 Subagent 결과를 병합할 때 결론, 충돌 여부, 다음 조치만 요약한다. 세부 로그는 실패/불일치/사용자 요청이 있을 때만 좁게 요청한다.
-12. `subagent.auto=true`에서 작업을 완료하려면 `.codex/state/subagent-evidence.json`에 현재 branch, HEAD, 변경 파일 목록, `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과를 남긴다. evidence는 현재 git 상태와 일치해야 하며, 24시간 이상이면 stale로 보고 삭제 후 다시 생성한다.
+12. `subagent.auto=true`에서 작업을 완료하려면 `pogo-state/subagent-evidence.json`에 현재 branch, HEAD, 변경 파일 목록, `pogo-verifier` 또는 `pogo-tester`의 `PASS` 결과를 남긴다. evidence는 현재 git 상태와 일치해야 하며, 24시간 이상이면 stale로 보고 삭제 후 다시 생성한다.
 
 ## 5. 기존 코드를 수정할 때
 

@@ -26,7 +26,7 @@
 - PR/merge 정책은 문서 기반 보완책이므로, 실제 브랜치 보호 규칙과 충돌 시 추가 운영 합의 필요.
 
 ## report_file
-.codex/state/subagent-reports/2026-06-25/064854-docs_subagent-report-policy/git-policy-merge-release/pogo-worker.md
+pogo-state/subagent-reports/2026-06-25/064854-docs_subagent-report-policy/git-policy-merge-release/pogo-worker.md
 
 ## reviewer_decision
 REVIEW_REQUIRED

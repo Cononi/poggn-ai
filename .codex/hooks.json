@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" session-start; fi; d=$(dirname \"$d\"); done; exit 0'",
+            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" session-start; fi; d=\"$(dirname \"$d\")\"; done; exit 0'",
             "timeout": 10,
             "statusMessage": "Loading pogo controls"
           }
@@ -19,9 +19,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" pre-tool-use; fi; d=$(dirname \"$d\"); done; exit 0'",
+            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" pre-tool-use; fi; d=\"$(dirname \"$d\")\"; done; exit 0'",
             "timeout": 10,
-            "statusMessage": "Checking pogo git automation policy"
+            "statusMessage": "Checking pogo git/edit policy"
+          }
+        ]
+      },
+      {
+        "matcher": ".*\\.codex/.*|.*AGENTS\\.md.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" pre-tool-use; fi; d=\"$(dirname \"$d\")\"; done; exit 0'",
+            "timeout": 10,
+            "statusMessage": "Checking pogo .codex/AGENTS edit policy"
           }
         ]
       }
@@ -31,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" user-prompt-submit; fi; d=$(dirname \"$d\"); done; exit 0'",
+            "command": "sh -c 'd=\"$PWD\"; while [ \"$d\" != / ]; do f=\"$d/.codex/hooks/pogo_policy_hook.py\"; if [ -f \"$f\" ]; then exec env PYTHONDONTWRITEBYTECODE=1 python3 \"$f\" user-prompt-submit; fi; d=\"$(dirname \"$d\")\"; done; exit 0'",
             "timeout": 10,
             "statusMessage": "Handling pogo shortcut"
           }

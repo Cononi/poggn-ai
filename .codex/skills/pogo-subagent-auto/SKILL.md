@@ -1,6 +1,6 @@
 ---
 name: pogo-subagent-auto
-description: `$pogo-subagent-auto` 상태와 정책을 확인하거나 수정할 때 사용한다. Use when checking or changing SubAgent auto on/off/status, SubAgent evidence, `.codex/state/subagent-evidence.json`, or mandatory SubAgents before git commit/push/merge.
+description: `$pogo-subagent-auto` 상태와 정책을 확인하거나 수정할 때 사용한다. Use when checking or changing SubAgent auto on/off/status, SubAgent evidence, `pogo-state/subagent-evidence.json`, or mandatory SubAgents before git commit/push/merge.
 ---
 
 # Pogo SubAgent Auto
@@ -28,23 +28,23 @@ Bare `$pogo-subagent-auto` means `status`.
 Hooks cannot spawn Subagents directly.
 They can block shortcut prompts and pre-tool git commands.
 
-When `.codex/state/pogo-settings.json` has `subagent.auto=true`:
+When `pogo-state/pogo-settings.json` has `subagent.auto=true`:
 
 1. Main orchestrator must start with a short task brief (goal, scope, delegation targets, expected evidence) and then start at least one relevant Subagent for development/review/QA work.
 2. Main orchestrator should not run broad repo exploration, raw `git diff`/`git log` review, or full verification before delegation.
 3. Main orchestrator may do direct work only for: user request, confirmed failure, Subagent disagreement, security/data-loss risk, or unavailable Subagent.
 4. `pogo-verifier` or `pogo-tester` must produce PASS evidence before completion.
-5. Before git `commit`, `push`, or `merge`, the hook requires `.codex/state/subagent-evidence.json`.
+5. Before git `commit`, `push`, or `merge`, the hook requires `pogo-state/subagent-evidence.json`.
 
 Thin Mode rules:
 
 - Main orchestrator consumes `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision` from Subagent results by default.
-- `report_file` should be under `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` and include timezone-aware date/time and sanitized branch path info in the path.
+- `report_file` should be under `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md` and include timezone-aware date/time and sanitized branch path info in the path.
 - `summary` must include: reason for work, done work, outcome, reviewer-agent result, recheck-needed flag, and completion quality.
-- Report language follows `.codex/state/pogo-settings.json` `lang` (ko/en/bilingual with bilingual summaries).
+- Report language follows `pogo-state/pogo-settings.json` `lang` (ko/en/bilingual with bilingual summaries).
 - Subagent `summary` is 3 lines or less, `risks` is 3 bullets or less, and `evidence` is command/status proof instead of raw logs.
 - Raw logs, full diffs, and tool traces are requested only for user request, failure, Subagent disagreement, subagent unavailability, or security/data-loss risk.
-- `.codex/state/subagent-evidence.json` stores status fields only. Do not store logs, diffs, prompts, or long analysis in evidence.
+- `pogo-state/subagent-evidence.json` stores status fields only. Do not store logs, diffs, prompts, or long analysis in evidence.
 
 Evidence contract:
 

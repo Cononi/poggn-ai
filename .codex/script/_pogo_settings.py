@@ -12,6 +12,7 @@ VALID_LANGUAGES = {"ko", "en", "bilingual"}
 DEFAULT_STATE = {
     "gitAutomation": {"commit": False, "push": False, "merge": False},
     "gitAllowOnce": {"commit": False, "push": False, "merge": False},
+    "codexEdit": True,
     "language": {"mode": "ko"},
     "subagent": {"auto": False},
 }
@@ -26,9 +27,10 @@ def repo_root() -> Path:
 
 
 ROOT = repo_root()
-STATE_PATH = ROOT / ".codex" / "state" / "pogo-settings.json"
-LOCAL_STATE_PATH = ROOT / ".codex" / "state" / "pogo-settings.local.json"
-SUBAGENT_EVIDENCE_PATH = ROOT / ".codex" / "state" / "subagent-evidence.json"
+STATE_DIR = ROOT / "pogo-state"
+STATE_PATH = STATE_DIR / "pogo-settings.json"
+LOCAL_STATE_PATH = STATE_DIR / "pogo-settings.local.json"
+SUBAGENT_EVIDENCE_PATH = STATE_DIR / "subagent-evidence.json"
 SUBAGENT_EVIDENCE_AGENTS = {"pogo-verifier", "pogo-tester"}
 SUBAGENT_EVIDENCE_RESULTS = {"PASS"}
 SUBAGENT_EVIDENCE_MAX_AGE_SECONDS = 24 * 60 * 60
@@ -78,6 +80,9 @@ def normalize_state(data: Any) -> dict[str, Any]:
             if key in once:
                 state["gitAllowOnce"][key] = _require_bool(once[key], f"gitAllowOnce.{key}")
 
+    if "codexEdit" in raw:
+        state["codexEdit"] = _require_bool(raw["codexEdit"], "codexEdit")
+
     if "language" in raw:
         language = _require_dict(raw["language"], "language")
         mode = language.get("mode", state["language"]["mode"])
@@ -121,6 +126,10 @@ def _state_overrides(default_state: dict[str, Any], current_state: dict[str, Any
                 diff[child_key] = current_child.get(child_key)
         if diff:
             overrides[key] = diff
+
+
+    if current_state.get("codexEdit") != default_state.get("codexEdit"):
+        overrides["codexEdit"] = current_state.get("codexEdit")
 
     if current_state.get("language", {}).get("mode") != default_state.get("language", {}).get("mode"):
         overrides["language"] = {"mode": current_state.get("language", {}).get("mode")}

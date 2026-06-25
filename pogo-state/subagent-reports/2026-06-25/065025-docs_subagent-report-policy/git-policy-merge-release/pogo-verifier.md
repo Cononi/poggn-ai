@@ -12,7 +12,7 @@
 - `.codex/skills/safe-git-automation/references/worktree-policy.md`
 - `.codex/agents/pogo-git-agent.toml`
 - `.codex/script/pogo_release.py`
-- `보고서: .codex/state/subagent-reports/2026-06-25/064854-docs_subagent-report-policy/git-policy-merge-release/pogo-worker.md`
+- `보고서: pogo-state/subagent-reports/2026-06-25/064854-docs_subagent-report-policy/git-policy-merge-release/pogo-worker.md`
 
 ## evidence
 1. `.codex/skills/safe-git-automation/SKILL.md`에 `Single Agent와 Multi Agent 모두 동일 규칙` 및 `release 자동 생성은 기본 수행하지 않음` 문구가 존재.
@@ -26,7 +26,7 @@
 - `current_version` 검증은 project-map/versionSource 정책에 따라 동작하나, release-notes/merge-notes 경로 간 요구사항 차이가 있을 경우 오해 여지가 있음.
 
 ## report_file
-.codex/state/subagent-reports/2026-06-25/065025-docs_subagent-report-policy/git-policy-merge-release/pogo-verifier.md
+pogo-state/subagent-reports/2026-06-25/065025-docs_subagent-report-policy/git-policy-merge-release/pogo-verifier.md
 
 ## reviewer_decision
 REWORK_REQUIRED

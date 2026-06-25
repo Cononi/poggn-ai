@@ -41,13 +41,13 @@ Codex 공식 용어는 Subagents다. Multi Agent는 Subagents로 해석한다.
 
 Subagent Thin Mode는 `pogo`와 `pogo-subagent-auto`를 따른다. 메인은 기본적으로 `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision`만 소비한다. 원시 로그, 전체 diff, 장문 분석은 사용자 요청, 실패, 불일치, 보안/데이터 손실 위험일 때만 좁게 확인한다.
 
-보고서 본문은 `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md`에 남긴다. 각 보고서는 작업 수행 이유, 처리한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 포함한다. 최종 검토 종합 문서는 개별 보고서를 근거로 작성한다. `.codex/state/subagent-evidence.json`은 hook용 `version/branch/head/agents/changedFiles` 메타데이터만 저장한다.
+보고서 본문은 `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/<agent-name>.md`에 남긴다. 각 보고서는 작업 수행 이유, 처리한 작업, 작업 결과, 검토 에이전트 결과, 재검토 필요성, 완성도를 포함한다. 최종 검토 종합 문서는 개별 보고서를 근거로 작성한다. `pogo-state/subagent-evidence.json`은 hook용 `version/branch/head/agents/changedFiles` 메타데이터만 저장한다.
 
 ## Git
 
 Git 작업은 `pogo-settings`와 `safe-git-automation`을 따른다. `subagent.auto=true`이면 git 상태 확인, commit, push, merge, release는 `pogo-git-agent`에 우선 위임한다.
 
-- `.codex/state/pogo-settings.json`의 `gitAutomation` 값을 확인한다.
+- `pogo-state/pogo-settings.json`의 `gitAutomation` 값을 확인한다.
 - 자동화가 꺼진 commit/push/merge는 사용자가 명시적으로 요청하지 않으면 수행하지 않는다.
 - 명시 요청 1회는 `$pogo-settings git <target> once`를 사용한다.
 - 보호 규칙 우회, force push, destructive command는 별도 명시 승인 없이는 수행하지 않는다.

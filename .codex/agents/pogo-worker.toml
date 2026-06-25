@@ -21,6 +21,6 @@ Return:
 - changed_files: files touched
 - evidence: commands run and results
 - risks: unresolved issues or assumptions
-- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `.codex/state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-worker.md`.
+- report_file: markdown report path containing summary, changed_files, evidence, risks, reviewer_decision. Use `pogo-state/subagent-reports/<YYYY-MM-DD>/<HHMMSS>-<sanitized-branch>/<task-id>/pogo-worker.md`.
 - reviewer_decision: PASS | REVIEW_REQUIRED | BLOCKED
 """

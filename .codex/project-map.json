@@ -6,7 +6,8 @@
       "paths": [
         ".codex",
         ".github/workflows/pogo-policy.yml",
-        "AGENTS.md"
+        "AGENTS.md",
+        "pogo-state"
       ],
       "versionSource": ".codex/version.json",
       "release": true

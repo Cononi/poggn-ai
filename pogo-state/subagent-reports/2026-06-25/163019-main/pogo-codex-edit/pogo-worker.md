@@ -1,0 +1,6 @@
+summary: Pogo 상태 저장소를 `.codex/state`에서 `pogo-state/`로 이동하고, `Pogo Codex Edit` on/off/toggle/status 제어와 차단 hook을 추가했습니다. 기본 동작은 기존(`on`)을 유지하면서 오프일 때만 `.codex/**` 및 `AGENTS.md` 수정이 차단됩니다.
+changed_files: .codex/script/_pogo_settings.py, .codex/script/pogo_settings.py, .codex/hooks/pogo_policy_hook.py, .codex/script/pogo_policy_ci.py, .codex/hooks.json, AGENTS.md, .codex/skills/pogo-settings/SKILL.md, .codex/skills/pogo-subagent-auto/SKILL.md, .codex/skills/pogo/SKILL.md, .codex/skills/pogo-codex-edit/SKILL.md, pogo-state/.gitignore, pogo-state/pogo-settings.json, pogo-state/subagent-reports/**
+evidence: python3 .codex/script/pogo_settings.py status / codex-edit status, `$pogo-codex-edit` 및 `$pogo-settings codex-edit status` user-prompt-submit block 실행, codex-edit off/on 상태 전환 후 `.codex/foo`, `AGENTS.md` pre-tool dry-run blocked/pass 확인, python3 .codex/script/pogo_policy_ci.py PASS, python3 -m py_compile .codex/hooks/pogo_policy_hook.py .codex/script/pogo_settings.py .codex/script/_pogo_settings.py PASS, `.codex/state` 제거 및 `pogo-state/subagent-reports` 이관 확인
+risks: `hooks.json` matcher는 Git hook matcher 동작의 정확한 정규식 스펙에 대한 확신이 제한적이나 기존 `^Bash$` hook은 유지했고, 추가 matcher는 보강용으로만 적용했습니다.
+report_file: pogo-state/subagent-reports/2026-06-25/163019-main/pogo-codex-edit/pogo-worker.md
+reviewer_decision: PASS

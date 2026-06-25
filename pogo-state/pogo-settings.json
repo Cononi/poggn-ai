@@ -9,6 +9,7 @@
     "push": false,
     "merge": false
   },
+  "codexEdit": true,
   "language": {
     "mode": "ko"
   },
