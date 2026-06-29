@@ -250,6 +250,20 @@ Release note는 다음 항목을 포함한다.
 - 제거:
 - 수정:
 
+
+## 상세 변경
+
+- Commit: `<short-hash>`
+- 제목: `<type(scope): summary>`
+- 내용:
+  - 변경 이유
+  - 실제 변경 내용
+  - 영향 범위
+- Footer:
+  - `Validation: <command> <PASS|FAILED|PARTIAL|NOT RUN>`
+  - `Scope: <project/path>`
+  - `Rollback: <rollback 기준>`
+
 ## 검증
 
 - `<command>`: PASS / FAILED / PARTIAL / NOT RUN

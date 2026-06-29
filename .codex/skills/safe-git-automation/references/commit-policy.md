@@ -78,12 +78,27 @@ fix stuff
 changes
 ```
 
-본문에는 필요할 때 다음을 적는다.
+작업 commit은 제목, 본문, 푸터를 모두 남긴다. 제목은 "무엇이 바뀌었는지"를 한 줄로 말하고,
+본문은 "왜 바꿨는지", "무엇을 바꿨는지", "영향 범위"를 최소 2줄 이상으로 적는다.
+푸터는 추적과 검증을 위해 아래 항목을 남긴다.
 
-- 무엇보다 왜 바꿨는지
-- 호환성 또는 migration 영향
-- Issue 또는 Spec 식별자
-- 의도적으로 제외한 내용
+- `Validation`: 실행한 검증 명령과 결과. 실행 전이면 계획값을 쓰지 말고 commit 직전 실제 결과를 적는다.
+- `Scope`: 변경된 project/path.
+- `Rollback`: 문제가 생겼을 때 되돌릴 기준.
+- `Refs`: Issue, Spec, branch 등 연결할 대상이 있을 때 추가한다.
+
+예시:
+
+```text
+docs(pogo-policy): require detailed release and commit records
+
+릴리즈 노트가 버전별 변경 내용을 commit 제목만으로 요약하지 않도록 상세 변경 섹션을 요구한다.
+작업 commit에도 제목, 본문, 푸터를 남겨 검증과 롤백 기준을 추적할 수 있게 한다.
+
+Validation: PYTHONDONTWRITEBYTECODE=1 python3 .codex/script/pogo_policy_ci.py PASS
+Scope: .codex/skills/safe-git-automation
+Rollback: revert this commit
+```
 
 main 반영은 검증된 작업 commit을 fast-forward하는 것을 기본으로 한다. squash merge commit을 새로 만들지 않는다.
 

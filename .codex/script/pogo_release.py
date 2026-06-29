@@ -282,28 +282,37 @@ def project_scope_paths(project: dict | None, path: Path) -> list[str]:
     return [display_path(path)]
 
 
-def collect_commits(rev_range: str, paths: list[str]) -> list[tuple[str, str]]:
+def collect_commits(rev_range: str, paths: list[str]) -> list[dict[str, str]]:
     proc = run([
         "git",
         "log",
         "--no-merges",
-        "--pretty=format:%h%x1f%s",
+        "--pretty=format:%H%x1f%h%x1f%s%x1f%b%x1e",
         rev_range,
         "--",
         *paths,
     ])
     if proc.returncode:
         raise SystemExit(proc.stderr.strip() or "Unable to collect git log")
-    commits: list[tuple[str, str]] = []
+    commits: list[dict[str, str]] = []
     seen: set[str] = set()
-    for line in proc.stdout.splitlines():
-        if "\x1f" not in line:
+    for record in proc.stdout.split("\x1e"):
+        record = record.strip()
+        if not record:
             continue
-        short, subject = line.split("\x1f", 1)
-        if short in seen:
+        parts = record.split("\x1f", 3)
+        if len(parts) != 4:
             continue
-        seen.add(short)
-        commits.append((short, subject))
+        full, short, subject, body = parts
+        if full in seen:
+            continue
+        seen.add(full)
+        commits.append({
+            "full": full,
+            "short": short,
+            "subject": subject.strip(),
+            "body": body.strip(),
+        })
     return commits
 
 
@@ -377,18 +386,41 @@ def category_for(subject: str) -> str:
     return "변경"
 
 
-def print_commit_groups(commits: list[tuple[str, str]]) -> None:
+def print_commit_groups(commits: list[dict[str, str]]) -> None:
     groups = ["추가", "수정", "개선", "검증", "운영/문서", "변경"]
     grouped = {name: [] for name in groups}
-    for short, subject in commits:
-        grouped[category_for(subject)].append((short, subject))
+    for item in commits:
+        grouped[category_for(item["subject"])].append(item)
     for name in groups:
         entries = grouped[name]
         if not entries:
             continue
         print(f"### {name}\n")
-        for short, subject in entries:
-            print(f"- {subject} (`{short}`)")
+        for item in entries:
+            print(f"- {item['subject']} (`{item['short']}`)")
+        print()
+
+
+def print_commit_details(commits: list[dict[str, str]]) -> None:
+    if not commits:
+        print("- 상세 변경 없음\n")
+        return
+    for index, item in enumerate(commits, start=1):
+        body, footer = split_body_footer(item["body"])
+        print(f"### {index}. {item['subject']}\n")
+        print(f"- Commit: `{item['short']}`")
+        print("- 내용:")
+        if body:
+            for line in body.splitlines():
+                print(f"  {line}" if line.strip() else "")
+        else:
+            print("  없음")
+        print("- Footer:")
+        if footer:
+            for line in footer:
+                print(f"  - {line}")
+        else:
+            print("  - 없음")
         print()
 
 
@@ -446,8 +478,8 @@ def notes(args: argparse.Namespace) -> int:
     print(f"- 기준 ref/tag: `{base or 'none'}`\n")
     print("## 요약\n")
     if commits:
-        for _, subject in commits[:3]:
-            print(f"- {subject}")
+        for item in commits[:3]:
+            print(f"- {item['subject']}")
     else:
         print("- 변경 commit 없음")
     print()
@@ -456,6 +488,8 @@ def notes(args: argparse.Namespace) -> int:
         print_commit_groups(commits)
     else:
         print("- 변경 commit 없음\n")
+    print("## 상세 변경\n")
+    print_commit_details(commits)
     print("## 변경 파일\n")
     if files:
         for item in files:

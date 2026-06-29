@@ -86,6 +86,20 @@ main fast-forward 후 release를 요청받은 경우 `.codex/script/pogo_release
 - 제거:
 - 수정:
 
+
+## 상세 변경
+
+- Commit: `<short-hash>`
+- 제목: `<type(scope): summary>`
+- 내용:
+  - 변경 이유
+  - 실제 변경 내용
+  - 영향 범위
+- Footer:
+  - `Validation: <command> <PASS|FAILED|PARTIAL|NOT RUN>`
+  - `Scope: <project/path>`
+  - `Rollback: <rollback 기준>`
+
 ## 검증
 
 - `<command>`: PASS / FAILED / PARTIAL / NOT RUN
@@ -110,6 +124,7 @@ main fast-forward 후 release를 요청받은 경우 `.codex/script/pogo_release
 - `git merge --ff-only`가 실패함
 - migration 또는 rollback 검증이 끝나지 않음
 - release note에 실제 검증 증거를 넣을 수 없음
+- release note에 이번 버전의 상세 변경, 영향 범위, commit footer를 넣을 수 없음
 
 ## Release
 
