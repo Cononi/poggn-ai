@@ -268,6 +268,37 @@ def latest_project_tag(project: str) -> str | None:
     return tags[0] if tags else None
 
 
+def version_from_tag(project: str, tag: str | None) -> str | None:
+    if not tag:
+        return None
+    prefix = f"{project}-v"
+    if not tag.startswith(prefix):
+        return None
+    version = tag[len(prefix):]
+    return version if SEMVER.fullmatch(version) else None
+
+
+def version_bump_type(previous: str | None, current: str | None) -> str:
+    if not previous or not current:
+        return "unknown"
+    if previous == current:
+        return "none"
+    prev_core = previous.split("-", 1)[0].split("+", 1)[0]
+    curr_core = current.split("-", 1)[0].split("+", 1)[0]
+    try:
+        prev_major, prev_minor, prev_patch = [int(item) for item in prev_core.split(".")]
+        curr_major, curr_minor, curr_patch = [int(item) for item in curr_core.split(".")]
+    except ValueError:
+        return "unknown"
+    if curr_major != prev_major:
+        return "major"
+    if curr_minor != prev_minor:
+        return "minor"
+    if curr_patch != prev_patch:
+        return "patch"
+    return "prerelease"
+
+
 def current_version(path: Path, project: dict | None) -> str | None:
     sources = version_sources(path, project)
     if not sources:
@@ -282,37 +313,28 @@ def project_scope_paths(project: dict | None, path: Path) -> list[str]:
     return [display_path(path)]
 
 
-def collect_commits(rev_range: str, paths: list[str]) -> list[dict[str, str]]:
+def collect_commits(rev_range: str, paths: list[str]) -> list[tuple[str, str]]:
     proc = run([
         "git",
         "log",
         "--no-merges",
-        "--pretty=format:%H%x1f%h%x1f%s%x1f%b%x1e",
+        "--pretty=format:%h%x1f%s",
         rev_range,
         "--",
         *paths,
     ])
     if proc.returncode:
         raise SystemExit(proc.stderr.strip() or "Unable to collect git log")
-    commits: list[dict[str, str]] = []
+    commits: list[tuple[str, str]] = []
     seen: set[str] = set()
-    for record in proc.stdout.split("\x1e"):
-        record = record.strip()
-        if not record:
+    for line in proc.stdout.splitlines():
+        if "\x1f" not in line:
             continue
-        parts = record.split("\x1f", 3)
-        if len(parts) != 4:
+        short, subject = line.split("\x1f", 1)
+        if short in seen:
             continue
-        full, short, subject, body = parts
-        if full in seen:
-            continue
-        seen.add(full)
-        commits.append({
-            "full": full,
-            "short": short,
-            "subject": subject.strip(),
-            "body": body.strip(),
-        })
+        seen.add(short)
+        commits.append((short, subject))
     return commits
 
 
@@ -371,56 +393,68 @@ def collect_changed_files(base: str | None, target: str, paths: list[str]) -> li
     return [item for item in files if any(path_matches(item, path) for path in paths)]
 
 
+def collect_changed_file_statuses(base: str | None, target: str, paths: list[str]) -> list[tuple[str, str]]:
+    diff_target = target or "HEAD"
+    if base == diff_target:
+        return []
+    if base:
+        range_arg = f"{base}...{diff_target}"
+        proc = run(["git", "diff", "--name-status", range_arg])
+        if proc.returncode:
+            proc = run(["git", "diff", "--name-status", f"{base}..{diff_target}"])
+    else:
+        proc = run(["git", "diff", "--name-status", diff_target])
+    if proc.returncode:
+        raise SystemExit(proc.stderr.strip() or "unable to collect changed file statuses")
+    statuses: list[tuple[str, str]] = []
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status = parts[0]
+        changed_file = parts[-1]
+        if any(path_matches(changed_file, path) for path in paths):
+            statuses.append((status, changed_file))
+    return statuses
+
+
 def category_for(subject: str) -> str:
     lowered = subject.lower()
-    if lowered.startswith("feat"):
+    if lowered.startswith("feat") or any(word in lowered for word in (" add ", "added", "create")):
         return "추가"
-    if lowered.startswith("fix"):
+    if lowered.startswith("fix") or "fix" in lowered or "repair" in lowered:
         return "수정"
-    if lowered.startswith(("docs", "chore", "ci", "build")):
-        return "운영/문서"
-    if lowered.startswith(("refactor", "perf")):
-        return "개선"
-    if lowered.startswith("test"):
-        return "검증"
+    if any(word in lowered for word in ("remove", "delete", "drop", "deprecate")):
+        return "삭제"
     return "변경"
 
 
-def print_commit_groups(commits: list[dict[str, str]]) -> None:
-    groups = ["추가", "수정", "개선", "검증", "운영/문서", "변경"]
-    grouped = {name: [] for name in groups}
-    for item in commits:
-        grouped[category_for(item["subject"])].append(item)
-    for name in groups:
-        entries = grouped[name]
-        if not entries:
-            continue
+def file_category(status: str) -> str:
+    code = status[:1]
+    if code == "A":
+        return "추가"
+    if code == "D":
+        return "삭제"
+    if code in {"M", "R", "C", "T"}:
+        return "변경"
+    return "변경"
+
+
+def print_change_sections(commits: list[tuple[str, str]], file_statuses: list[tuple[str, str]]) -> None:
+    grouped: dict[str, list[str]] = {"추가": [], "변경": [], "수정": [], "삭제": []}
+    for short, subject in commits:
+        grouped[category_for(subject)].append(f"{subject} (`{short}`)")
+    for status, changed_file in file_statuses:
+        grouped[file_category(status)].append(f"`{changed_file}` ({status})")
+
+    for name in ("추가", "변경", "수정", "삭제"):
         print(f"### {name}\n")
-        for item in entries:
-            print(f"- {item['subject']} (`{item['short']}`)")
-        print()
-
-
-def print_commit_details(commits: list[dict[str, str]]) -> None:
-    if not commits:
-        print("- 상세 변경 없음\n")
-        return
-    for index, item in enumerate(commits, start=1):
-        body, footer = split_body_footer(item["body"])
-        print(f"### {index}. {item['subject']}\n")
-        print(f"- Commit: `{item['short']}`")
-        print("- 내용:")
-        if body:
-            for line in body.splitlines():
-                print(f"  {line}" if line.strip() else "")
+        entries = grouped[name]
+        if entries:
+            for entry in entries:
+                print(f"- {entry}")
         else:
-            print("  없음")
-        print("- Footer:")
-        if footer:
-            for line in footer:
-                print(f"  - {line}")
-        else:
-            print("  - 없음")
+            print("- 없음")
         print()
 
 
@@ -462,34 +496,42 @@ def notes(args: argparse.Namespace) -> int:
     target = args.to_ref or "HEAD"
     rev_range = f"{base}..{target}" if base else target
     version = current_version(path, mapped)
+    previous_version = version_from_tag(project, base)
     if not version:
         print("release version source must contain a valid semver version", file=sys.stderr)
         return 2
     if not args.verify:
         print("--verify is required so release notes include actual verification evidence", file=sys.stderr)
         return 2
+    if not args.reason:
+        print("--reason is required so release notes explain why this release is needed", file=sys.stderr)
+        return 2
+    if not args.handoff:
+        print("--handoff is required so release notes include maintenance handoff details", file=sys.stderr)
+        return 2
     scope_paths = project_scope_paths(mapped, path)
     commits = collect_commits(rev_range, scope_paths)
     files = collect_changed_files(base, target, scope_paths)
+    file_statuses = collect_changed_file_statuses(base, target, scope_paths)
     print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
+    print("## 릴리즈 필요성\n")
+    print(f"- {args.reason}\n")
     print("## 버전\n")
+    print(f"- 이전 버전/tag: `{previous_version or base or 'none'}`")
     print(f"- 현재 버전: `{version or 'unknown'}`")
+    print(f"- 버전업 유형: `{version_bump_type(previous_version, version)}`")
+    print(f"- 버전업 이유: {args.reason}")
     print(f"- 태그 정책: `{project}-v<semver>`")
     print(f"- 기준 ref/tag: `{base or 'none'}`\n")
     print("## 요약\n")
     if commits:
-        for item in commits[:3]:
-            print(f"- {item['subject']}")
+        for _, subject in commits[:3]:
+            print(f"- {subject}")
     else:
         print("- 변경 commit 없음")
     print()
-    print("## 변경 사항\n")
-    if commits:
-        print_commit_groups(commits)
-    else:
-        print("- 변경 commit 없음\n")
-    print("## 상세 변경\n")
-    print_commit_details(commits)
+    print("## 변경 항목\n")
+    print_change_sections(commits, file_statuses)
     print("## 변경 파일\n")
     if files:
         for item in files:
@@ -505,7 +547,11 @@ def notes(args: argparse.Namespace) -> int:
     print(f"- 운영 정책 또는 설정 변경: {'있음' if policy_changed else '없음'}")
     print("\n## 롤백\n")
     print(f"- 기준 ref/tag: `{base or 'none'}`")
+    print(f"- 되돌릴 release tag: `{project}-v{version}`")
     print(f"- 문제가 있으면 `{target}`에 포함된 변경 commit을 revert하고 새 release를 생성하세요.")
+    print("- 롤백 후 검증: 동일한 검증 명령을 다시 실행하고 운영 정책/설정 변경 여부를 확인하세요.")
+    print("\n## 인수인계\n")
+    print(f"- {args.handoff}")
     return 0
 
 
@@ -517,14 +563,22 @@ def merge_notes(args: argparse.Namespace) -> int:
     target = args.to_ref or "HEAD"
     rev_range = f"{base}..{target}" if base else target
     version = current_version(path, mapped)
+    previous_version = version_from_tag(project, base)
     version_label = version or "unknown"
     version_note = "valid semver" if version else "missing or invalid semver; release create still requires an explicit valid tag/version"
     if not args.verify:
         print("--verify is required so release notes include actual verification evidence", file=sys.stderr)
         return 2
+    if not args.reason:
+        print("--reason is required so merge release notes explain why this release is needed", file=sys.stderr)
+        return 2
+    if not args.handoff:
+        print("--handoff is required so merge release notes include maintenance handoff details", file=sys.stderr)
+        return 2
     scope_paths = project_scope_paths(mapped, path)
     merges = collect_merge_commits(rev_range, scope_paths)
     files = collect_changed_files(base, target, scope_paths)
+    file_statuses = collect_changed_file_statuses(base, target, scope_paths)
     print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
     print("## 릴리즈 판단\n")
     if merges:
@@ -533,8 +587,13 @@ def merge_notes(args: argparse.Namespace) -> int:
     else:
         print("- 기준 범위에서 병합 기록이 없어 즉시 릴리즈 필요성은 낮습니다.")
     print()
+    print("## 릴리즈 필요성\n")
+    print(f"- {args.reason}\n")
     print("## 버전\n")
+    print(f"- 이전 버전/tag: `{previous_version or base or 'none'}`")
     print(f"- 현재 버전: `{version_label}`")
+    print(f"- 버전업 유형: `{version_bump_type(previous_version, version)}`")
+    print(f"- 버전업 이유: {args.reason}")
     print(f"- 버전 상태: {version_note}")
     print(f"- 태그 정책: `{project}-v<semver>`")
     print(f"- 기준 ref/tag: `{base or 'none'}`")
@@ -567,6 +626,9 @@ def merge_notes(args: argparse.Namespace) -> int:
             print()
     else:
         print("- 병합 commit 없음\n")
+    print("## 변경 항목\n")
+    merge_commit_items = [(item["short"], item["subject"]) for item in merges]
+    print_change_sections(merge_commit_items, file_statuses)
     print("## 변경 파일\n")
     if files:
         for item in files:
@@ -582,7 +644,11 @@ def merge_notes(args: argparse.Namespace) -> int:
     print(f"- 운영 정책 또는 설정 변경: {'있음' if policy_changed else '없음'}")
     print("\n## 롤백\n")
     print(f"- 기준 ref/tag: `{base or 'none'}`")
+    print(f"- 되돌릴 release tag: `{project}-v{version_label}`")
     print(f"- 문제가 있으면 `{target}`에 포함된 merge 또는 관련 commit을 revert하고 새 release를 생성하세요.")
+    print("- 롤백 후 검증: 동일한 검증 명령을 다시 실행하고 운영 정책/설정 변경 여부를 확인하세요.")
+    print("\n## 인수인계\n")
+    print(f"- {args.handoff}")
     return 0
 
 
@@ -672,12 +738,16 @@ def main(argv: list[str]) -> int:
     n.add_argument("--from", dest="from_ref")
     n.add_argument("--to", dest="to_ref")
     n.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
+    n.add_argument("--reason", help="why this release or version bump is needed")
+    n.add_argument("--handoff", help="maintenance handoff details such as owner, monitor, and follow-up")
     n.set_defaults(fn=notes)
     m = sub.add_parser("merge-notes", help="draft release notes from merge commit title/body/footer without creating a release")
     add_scope_args(m)
     m.add_argument("--from", dest="from_ref")
     m.add_argument("--to", dest="to_ref")
     m.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
+    m.add_argument("--reason", help="why this release or version bump is needed")
+    m.add_argument("--handoff", help="maintenance handoff details such as owner, monitor, and follow-up")
     m.set_defaults(fn=merge_notes)
     p = sub.add_parser("projects")
     p.set_defaults(fn=projects)

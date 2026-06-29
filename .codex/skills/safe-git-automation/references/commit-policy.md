@@ -9,6 +9,19 @@
 ## Commit 단위
 
 한 commit에는 하나의 논리적 목적만 둔다.
+작업이 실제 파일 변경으로 끝났고 검증 가능한 상태라면 commit을 남기는 것을 기본값으로 한다.
+commit은 과거의 작성자, 미래의 유지보수자, 인수인계자가 변경 흐름을 따라가도록 남기는 감사 기록이다.
+따라서 "수정했다"가 아니라 "왜 지금 바꿨고, 무엇을 추가/변경/수정/삭제했으며, 검증과 되돌림 기준이 무엇인지"를 추적할 수 있어야 한다.
+
+다음 중 하나라도 해당하면 commit하지 않는다.
+
+- 사용자 또는 다른 작업자의 기존 변경과 현재 작업 변경이 분리되지 않음
+- 필수 검증이 실패했거나, 실패 원인을 숨긴 채 완료처럼 보일 위험이 있음
+- staged diff에 민감정보, 운영 데이터, 의도하지 않은 생성물이 의심됨
+- 사용자 승인 범위 밖의 변경이 포함됨
+- 변경이 없거나 commit 목적이 설명되지 않음
+
+commit하지 않는 경우 최종 보고에 사유와 남은 조치를 명확히 남긴다.
 
 좋은 분리 예시:
 
@@ -69,6 +82,8 @@ feat | fix | test | refactor | docs | chore | build | ci | perf | revert
 
 제목은 실제 변경을 설명하고 모호한 표현을 피한다.
 작업 commit 제목에는 PR 번호를 강제하지 않는다. PR은 기본 생성하지 않으며, 최종 추적은 project-scoped release tag와 GitHub Release에서 한다.
+제목은 1줄 요약이지만, 제목만으로 모든 맥락을 대신하지 않는다.
+정책, release, migration, 운영 영향, 보안, 데이터, 사용자 흐름을 바꾸는 commit은 body와 footer를 생략하지 않는다.
 
 나쁜 예:
 
@@ -78,26 +93,60 @@ fix stuff
 changes
 ```
 
-작업 commit은 제목, 본문, 푸터를 모두 남긴다. 제목은 "무엇이 바뀌었는지"를 한 줄로 말하고,
-본문은 "왜 바꿨는지", "무엇을 바꿨는지", "영향 범위"를 최소 2줄 이상으로 적는다.
-푸터는 추적과 검증을 위해 아래 항목을 남긴다.
+본문에는 필요할 때 다음을 적는다.
 
-- `Validation`: 실행한 검증 명령과 결과. 실행 전이면 계획값을 쓰지 말고 commit 직전 실제 결과를 적는다.
-- `Scope`: 변경된 project/path.
-- `Rollback`: 문제가 생겼을 때 되돌릴 기준.
-- `Refs`: Issue, Spec, branch 등 연결할 대상이 있을 때 추가한다.
+- 무엇보다 왜 바꿨는지
+- 호환성 또는 migration 영향
+- Issue 또는 Spec 식별자
+- 의도적으로 제외한 내용
 
-예시:
+다음 항목 중 해당되는 내용은 body에 구체적으로 적는다.
+해당 없음도 중요한 판단이면 `없음`이라고 쓴다.
 
 ```text
-docs(pogo-policy): require detailed release and commit records
+변경 목적:
+- 왜 지금 이 변경이 필요한가
+- 문제를 방치하면 어떤 운영/유지보수/사용자 위험이 있는가
 
-릴리즈 노트가 버전별 변경 내용을 commit 제목만으로 요약하지 않도록 상세 변경 섹션을 요구한다.
-작업 commit에도 제목, 본문, 푸터를 남겨 검증과 롤백 기준을 추적할 수 있게 한다.
+변경 범위:
+- 추가: 새로 만든 기능, 정책, 파일, 섹션
+- 변경: 기존 동작, 정책, 형식, 흐름의 의미 변경
+- 수정: 결함, 누락, 오해 소지가 있던 부분의 보정
+- 삭제: 제거한 기능, 문서, 설정, 의존성
 
-Validation: PYTHONDONTWRITEBYTECODE=1 python3 .codex/script/pogo_policy_ci.py PASS
-Scope: .codex/skills/safe-git-automation
-Rollback: revert this commit
+버전 영향:
+- before: <이전 버전 또는 해당 없음>
+- after: <새 버전 또는 해당 없음>
+- version bump type: major | minor | patch | prerelease | none
+- version bump reason: 왜 그 수준의 버전 변경이 필요한가
+
+검증:
+- <command>: PASS | FAILED | PARTIAL | NOT RUN
+- 실패 또는 미실행 항목은 이유와 후속 조치
+
+호환성/마이그레이션:
+- breaking change 여부
+- 설정, DB, API, 배포, 운영 절차 변경 여부
+
+롤백:
+- 되돌릴 commit/tag
+- revert 또는 재릴리즈 절차
+- 되돌릴 때 확인할 데이터/설정/운영 지표
+
+인수인계:
+- 다음 담당자가 확인해야 할 파일, 정책, 모니터링, TODO
+```
+
+footer에는 추적 가능한 키-값을 남긴다. 최소 1개 이상이 아니라, 변경 성격에 맞는 항목을 가능한 한 구체적으로 남긴다.
+
+```text
+Refs: <issue/spec/branch/release-request>
+Validation: <command>=<PASS|FAILED|PARTIAL|NOT RUN>
+Scope: <project/path>
+Before: <version/tag/ref>
+After: <version/tag/ref>
+Rollback: <revert command 또는 release rollback 기준>
+Handoff: owner=<name-or-role>, monitor=<metric-or-log>, follow-up=<todo-or-none>
 ```
 
 main 반영은 검증된 작업 commit을 fast-forward하는 것을 기본으로 한다. squash merge commit을 새로 만들지 않는다.

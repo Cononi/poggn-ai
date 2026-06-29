@@ -50,55 +50,76 @@ git push <remote> main
 ## Merge 기록 템플릿 (제목/Body/Footer 강제)
 
 기본 merge 경로가 불가능할 때는 `git merge --no-ff` 등으로 merge commit을 만들되, 메시지는 다음 형식을 반드시 사용한다.
+merge record는 단순 병합 흔적이 아니라 release note와 장애 분석의 원천이다.
+따라서 미래의 유지보수자가 "왜 이 변경이 들어왔고, 무엇이 추가/변경/수정/삭제되었고, 어떤 버전/검증/롤백 기준을 따라야 하는지"를 읽을 수 있어야 한다.
 
 ```text
 feat(scope): 간단한 변경 요약
 
-- 변경 목적
-- 핵심 동작 변경
-- 영향 범위
+- 변경 목적: 왜 지금 merge해야 하는가
+- 변경 항목:
+  - 추가:
+  - 변경:
+  - 수정:
+  - 삭제:
+- 영향 범위: 사용자/운영/API/데이터/정책 영향
+- 버전 영향: before=<version-or-tag>, after=<version-or-tag>, bump=<major|minor|patch|prerelease|none>, reason=<이유>
+- 호환성/마이그레이션: breaking change, 설정, DB, API, 배포 영향
+- 인수인계: 담당 역할, 모니터링 지표, 남은 TODO
 
 Refs: <issue/branch>
 Validation: <필수검증명령+결과>
 Scope: <project/path>
-Rollback: <되돌림 방법>
+Before: <version/tag/ref>
+After: <version/tag/ref>
+Why-now: <릴리즈 또는 병합 필요성>
+Rollback: <구체적 revert 명령 또는 새 릴리즈 대체 절차>
+Handoff: owner=<name-or-role>, monitor=<metric-or-log>, follow-up=<todo-or-none>
 ```
 
 - 제목(title): `type(scope): ...` 형태(Conventional Commits 권장)
-- body: 요약, 이유, 범위, 검증 항목을 최소 2줄 이상 작성
-- footer: `Refs`, `Validation`, `Scope`, `Rollback`을 최소 1개 이상
+- body: 요약, 이유, 추가/변경/수정/삭제, 버전 영향, 호환성, 인수인계를 작성
+- footer: `Refs`, `Validation`, `Scope`, `Before`, `After`, `Why-now`, `Rollback`, `Handoff`를 작성
 
 main 반영은 fast-forward 우선 정책을 유지하고, merge record는 보완 경로에서만 사용한다.
 
 ## GitHub Release
 
 main fast-forward 후 release를 요청받은 경우 `.codex/script/pogo_release.py status`와 `notes`/`merge-notes`로 기준을 확인하고 GitHub Releases 페이지에 다음을 남긴다.
+release note는 "배포 공지"가 아니라 버전 변경의 감사 기록이다.
+작성자는 독자가 이전 맥락을 몰라도 왜 버전이 올라갔는지, 무엇이 바뀌었는지, 잘못되었을 때 어디를 되돌릴지 이해할 수 있게 써야 한다.
 
 ```md
+## 프로젝트
+
+- `<project>` (`<path>`)
+
+## 릴리즈 필요성
+
+- 왜 지금 릴리즈해야 하는가
+- 릴리즈하지 않으면 남는 위험 또는 유지보수 비용
+
+## 버전
+
+- 이전 버전/tag:
+- 현재 버전:
+- 버전업 유형: major / minor / patch / prerelease / none
+- 버전업 이유:
+
 ## 요약
 
 - 핵심 변경
 
-## 변경 사항
+## 변경 항목
 
 - 추가:
 - 변경:
-- 제거:
 - 수정:
+- 삭제:
 
+## 변경 파일
 
-## 상세 변경
-
-- Commit: `<short-hash>`
-- 제목: `<type(scope): summary>`
-- 내용:
-  - 변경 이유
-  - 실제 변경 내용
-  - 영향 범위
-- Footer:
-  - `Validation: <command> <PASS|FAILED|PARTIAL|NOT RUN>`
-  - `Scope: <project/path>`
-  - `Rollback: <rollback 기준>`
+- 주요 파일과 역할
 
 ## 검증
 
@@ -113,6 +134,14 @@ main fast-forward 후 release를 요청받은 경우 `.codex/script/pogo_release
 
 - 이전 tag:
 - 되돌릴 commit 또는 release tag:
+- 구체적 revert 또는 재릴리즈 절차:
+- 롤백 후 확인할 지표:
+
+## 인수인계
+
+- 담당 역할:
+- 모니터링 대상:
+- 후속 작업:
 ```
 
 ## 차단 기준
@@ -124,7 +153,7 @@ main fast-forward 후 release를 요청받은 경우 `.codex/script/pogo_release
 - `git merge --ff-only`가 실패함
 - migration 또는 rollback 검증이 끝나지 않음
 - release note에 실제 검증 증거를 넣을 수 없음
-- release note에 이번 버전의 상세 변경, 영향 범위, commit footer를 넣을 수 없음
+- release note에 릴리즈 필요성, 버전 전후, 버전업 이유, 추가/변경/수정/삭제, 롤백, 인수인계가 없음
 
 ## Release
 
