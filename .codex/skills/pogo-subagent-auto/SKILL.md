@@ -36,8 +36,10 @@ When `pogo-state/pogo-settings.json` has `subagent.auto=true`:
 1. Main orchestrator must post a pre-work plan report (goal, scope, delegation targets, expected evidence) and then start at least one relevant Subagent for development/review/QA work.
 2. Main orchestrator should minimize direct exploration and delegate first; it should start with least direct analysis and immediate Subagent launch.
 3. Main orchestrator may do direct work only for: user request, confirmed failure, Subagent disagreement, security/data-loss risk, or unavailable Subagent.
-4. `pogo-verifier` or `pogo-tester` must produce PASS evidence before completion.
-5. Before git `commit`, `push`, or `merge`, the hook requires `pogo-state/subagent-evidence.json`.
+4. Release note draft/check work uses deterministic helper output plus Subagent review; main consumes only the summary, report path, command evidence, and blocker decision.
+5. Main must not repeatedly read full diffs, raw logs, large `pogo-state` reports, or full release bodies unless a failure, disagreement, or user request requires it.
+6. `pogo-verifier` or `pogo-tester` must produce PASS evidence before completion.
+7. Before git `commit`, `push`, or `merge`, the hook requires `pogo-state/subagent-evidence.json`.
 
 Thin Mode rules:
 

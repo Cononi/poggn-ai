@@ -45,7 +45,8 @@ description: 작업 수행을 관장하는 기본 운영 엔진입니다. 사용
 
 - `subagent.auto=true`이고 작업이 Subagent가 수행할 성격일 때는,
   **`작업 진행 예정 보고서 승인이 완료된 뒤`**, 즉시(Subagent 최소 1개 이상)를 시작한다.
-- Git 상태 확인, commit/push/merge/release, 탐색/분석/리뷰/QA/보안/아키텍처 판단은 단일 작업자가 아니라 기본적으로 Subagent 라우팅을 우선 고려한다.
+- Git 상태 확인, commit/push/merge, release note 초안/검증, 탐색/분석/리뷰/QA/보안/아키텍처 판단은 단일 작업자가 아니라 기본적으로 Subagent 라우팅을 우선 고려한다.
+- release 실행은 Subagent나 auto가 승인할 수 없고, 현재 사용자 요청의 명시적 release 지시가 있을 때만 메인이 최종 승인 범위를 확인한다.
 - 단, 문서 수정 1~2줄 확인, 단순 출력 조회, 사용 의도 불명확, 위험도 낮은 즉시 응답은 직접 수행해도 된다.
 - Subagent는 항상 `summary`, `changed_files`, `evidence`, `risks`, `report_file`, `reviewer_decision`을 3개 항목 이하 요약으로 제출한다.
 
