@@ -61,6 +61,11 @@ def block(reason: str) -> dict[str, str]:
     return {"decision": "block", "reason": reason}
 
 
+def emit_block(reason: str) -> int:
+    print(json.dumps(block(reason), ensure_ascii=False))
+    return 0
+
+
 def prompt_text(payload: Any) -> str:
     if isinstance(payload, dict):
         return str(payload.get("prompt", ""))
@@ -263,20 +268,17 @@ def run_pre_tool_use() -> int:
     if not bool(state.get("codexEdit", True)):
         tokens = shell_tokens(text)
         if _command_targets_protected(tokens):
-            print(codex_edit_deny_message(mode), file=sys.stderr)
-            return 1
+            return emit_block(codex_edit_deny_message(mode))
 
     commands = git_subcommands(text)
     for key in GIT_TARGETS:
         if key in commands:
             if not git_allowed(state, key):
-                print(deny_message(mode, key), file=sys.stderr)
-                return 1
+                return emit_block(deny_message(mode, key))
             if state.get("subagent", {}).get("auto"):
                 ok, detail = subagent_evidence_status()
                 if not ok:
-                    print(subagent_evidence_deny_message(mode, key, detail), file=sys.stderr)
-                    return 1
+                    return emit_block(subagent_evidence_deny_message(mode, key, detail))
             consume_git_once(state, key)
             return 0
     return 0
