@@ -2,23 +2,25 @@
 
 ## 결론
 
-worktree는 새 작업의 기본 작업공간이다.
-특히 multi-project repo, release 준비, 병렬 작업은 worktree를 우선 사용한다.
-현재 작업공간에 이미 사용자가 만든 대상 미커밋 변경이 있어 그대로 commit해야 할 때만 일반 branch를 예외로 사용한다.
-Single Agent와 Multi Agent 모두 동일 정책을 적용한다.
+worktree는 모든 작업의 기본값이 아니다.
+간단한 설명, read-only 확인, 단일 파일 소규모 수정은 현재 workspace가 clean하면 worktree 없이 처리한다.
+여러 파일/프로젝트가 섞이거나 release 준비, 병렬 작업, 기존 미커밋 변경과 충돌 위험이 있으면 worktree를 사용한다.
+Single Agent와 Multi Agent 모두 동일 판단 기준을 적용한다.
 
 ## 선택 표
 
 | 상황 | 선택 | 이유 |
 |---|---|---|
-| 새 기능/수정/정책 변경 | worktree 기본 | main 작업공간과 project 변경을 분리한다. |
-| multi-project repo의 release 준비 | worktree 기본 | project별 version, tag, release 판단을 분리한다. |
+| 설명/질문 답변 | worktree 불필요 | 파일 변경이나 branch 전환이 없다. |
+| 단순 read-only 확인 | worktree 불필요 | 상태 조회만 수행한다. |
+| 단일 파일 소규모 수정, clean workspace | worktree 불필요 | worktree 생성 비용이 더 크다. |
+| 여러 파일 또는 여러 project path 수정 | worktree 권장 | main 작업공간과 project 변경을 분리한다. |
+| multi-project repo의 release 준비 | worktree 권장 | project별 version, tag, release 판단을 분리한다. |
 | 여러 에이전트가 같은 저장소에서 작업 | worktree 필수 | branch 전환과 파일 충돌을 줄인다. |
 | 현재 tree에 다른 작업의 미커밋 변경 존재 | worktree 필수 | 기존 변경을 건드리지 않는다. |
 | 현재 tree에 이번 대상 미커밋 변경만 존재 | 일반 branch 예외 | 변경 이동 과정에서 누락/혼입될 위험을 피한다. |
 | 기능 작업 중 별도 hotfix | worktree 권장 | 두 branch를 동시에 유지한다. |
 | 두 버전 비교 또는 장시간 테스트 | worktree 권장 | 작업공간을 분리한다. |
-| 단순 read-only 확인 | worktree 불필요 | 파일 변경이나 branch 전환이 없다. |
 | submodule 중심 superproject | 검증 전 사용 금지 | 다중 checkout 지원 제약을 확인해야 한다. |
 
 ## 중요한 한계
