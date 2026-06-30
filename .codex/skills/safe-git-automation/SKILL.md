@@ -99,25 +99,28 @@ remote URL에 자격 증명이 있으면 보고서에 복사하지 않는다.
 
 ## 작업공간 선택
 
-### 일반 브랜치가 기본인 경우
+### worktree가 기본인 경우
 
-- 한 에이전트가 한 작업만 수행한다.
-- 현재 작업공간이 깨끗하다.
-- 다른 branch를 동시에 열 필요가 없다.
-
-```bash
-git switch -c <branch> <base>
-```
-
-### worktree가 필요한 경우
-
+- 새 기능, 수정, 정책 변경, release 준비처럼 commit/push/merge/release로 이어질 수 있는 작업.
+- 여러 project path가 한 저장소에 있는 multi-project repo 작업.
 - 같은 저장소에서 여러 에이전트가 동시에 작업한다.
 - 현재 작업공간에 다른 작업의 미커밋 변경이 있다.
 - 기능 작업 중 별도의 hotfix 또는 비교 검증이 필요하다.
 - 사용자가 독립 작업공간을 명시적으로 요청했다.
 
 병렬 에이전트에서는 `작업 1개 = branch 1개 = worktree 1개`를 적용한다.
+multi-project repo에서는 single-agent 작업도 worktree를 우선 사용해 project별 변경과 release 판단을 분리한다.
 worktree는 Git 작업공간 분리이며 프로세스, 포트, DB, secret을 격리하지 않는다.
+
+### 일반 브랜치만 허용되는 예외
+
+- 현재 작업공간에 이미 사용자가 만든 대상 미커밋 변경이 있고, 그 변경을 그대로 commit/release해야 한다.
+- 단순 read-only 확인 또는 한 줄 상태 조회처럼 branch가 필요 없는 작업이다.
+- submodule 중심 superproject 등 worktree 안전성이 확인되지 않았고, 먼저 정책 검증이 필요하다.
+
+```bash
+git switch -c <branch> <base>
+```
 
 상세 판단과 명령은 `references/worktree-policy.md`를 따른다.
 

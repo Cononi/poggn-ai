@@ -2,19 +2,23 @@
 
 ## 결론
 
-worktree는 모든 Git 작업의 필수 조건이 아니다.
-단일 작업에는 일반 branch를 사용하고 병렬 작업에는 worktree를 사용한다.
+worktree는 새 작업의 기본 작업공간이다.
+특히 multi-project repo, release 준비, 병렬 작업은 worktree를 우선 사용한다.
+현재 작업공간에 이미 사용자가 만든 대상 미커밋 변경이 있어 그대로 commit해야 할 때만 일반 branch를 예외로 사용한다.
 Single Agent와 Multi Agent 모두 동일 정책을 적용한다.
 
 ## 선택 표
 
 | 상황 | 선택 | 이유 |
 |---|---|---|
-| 한 에이전트, 한 작업, clean tree | 일반 branch | 가장 단순하다. |
+| 새 기능/수정/정책 변경 | worktree 기본 | main 작업공간과 project 변경을 분리한다. |
+| multi-project repo의 release 준비 | worktree 기본 | project별 version, tag, release 판단을 분리한다. |
 | 여러 에이전트가 같은 저장소에서 작업 | worktree 필수 | branch 전환과 파일 충돌을 줄인다. |
 | 현재 tree에 다른 작업의 미커밋 변경 존재 | worktree 필수 | 기존 변경을 건드리지 않는다. |
-| 기능 개발 중 별도 hotfix | worktree 권장 | 두 branch를 동시에 유지한다. |
+| 현재 tree에 이번 대상 미커밋 변경만 존재 | 일반 branch 예외 | 변경 이동 과정에서 누락/혼입될 위험을 피한다. |
+| 기능 작업 중 별도 hotfix | worktree 권장 | 두 branch를 동시에 유지한다. |
 | 두 버전 비교 또는 장시간 테스트 | worktree 권장 | 작업공간을 분리한다. |
+| 단순 read-only 확인 | worktree 불필요 | 파일 변경이나 branch 전환이 없다. |
 | submodule 중심 superproject | 검증 전 사용 금지 | 다중 checkout 지원 제약을 확인해야 한다. |
 
 ## 중요한 한계
@@ -103,22 +107,33 @@ Created:
 같은 branch 또는 worktree를 두 에이전트에게 동시에 할당하지 않는다.
 공유 파일 변경이 예상되면 작업을 분리하거나 순서를 정한다.
 
+## 통합 절차
+
+worktree의 결과는 최종적으로 하나의 통합 branch 또는 `main`으로 모은다.
+
+1. 각 worktree에서 작업 범위별 commit을 만든다.
+2. 검증이 끝난 commit만 통합 branch 또는 `main`에 fast-forward/merge한다.
+3. 여러 worktree 결과가 있으면 통합 branch에서 순서대로 merge하고 충돌을 해결한다.
+4. 원격 branch, `main`, tag, release가 필요한 위치에 보존되었는지 확인한다.
+5. 보존 확인 전에는 worktree를 제거하지 않는다.
+
 ## 정리 절차
 
 정리 전 상태를 확인한다.
 
 ```bash
-git -C <path> status --porcelain=v2 --branch
-git -C <path> log -1 --oneline
+.codex/script/pogo_worktree_cleanup.py status <path>
 git worktree list --porcelain
 ```
 
-clean 상태이며 보존할 commit이 안전한 위치에 있을 때만 제거한다.
+clean 상태이며 보존할 commit이 안전한 branch 또는 remote에 있을 때만 제거한다.
+제거는 파일 시스템 삭제가 아니라 Git 등록 해제를 먼저 수행한다.
 
 ```bash
-git worktree remove <path>
+.codex/script/pogo_worktree_cleanup.py remove <path> --execute
 git worktree prune --dry-run
 ```
 
 `git worktree prune`은 dry-run 결과를 확인한 뒤 필요한 경우에만 실행한다.
 worktree 제거는 branch 삭제가 아니다. branch 삭제는 별도 승인 대상으로 둔다.
+`.worktrees` 아래 파일을 직접 삭제하지 않는다.
