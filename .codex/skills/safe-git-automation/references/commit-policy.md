@@ -153,13 +153,14 @@ main 반영은 검증된 작업 commit을 fast-forward하는 것을 기본으로
 
 ## Commit 전 검증
 
-최소한 다음을 수행한다.
+최소한 다음을 수행한다. 같은 결과를 반복 조회하지 말고, 한 번 얻은 검증 결과를 commit footer와 release note에 재사용한다.
 
 1. staged diff 전체 검토
 2. `git diff --cached --check`
 3. 관련 테스트, lint, build
 4. 민감정보와 생성 파일 확인
 5. author identity와 현재 branch 확인
+6. release 대상 작업이면 관련 `pogo-state/subagent-reports/**` 근거 확인
 
 검증하지 못한 항목은 `NOT RUN`으로 기록한다.
 

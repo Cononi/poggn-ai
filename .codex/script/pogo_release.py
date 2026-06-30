@@ -15,6 +15,7 @@ SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 PROJECT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 GRADLE_VERSION = re.compile(r"^\s*version\s*=\s*[\"']([^\"']+)[\"']\s*$")
 PROJECT_MAP_PATH = ROOT / ".codex" / "project-map.json"
+STATE_REPORT_ROOT = ROOT / "pogo-state" / "subagent-reports"
 
 
 def run(args: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -388,9 +389,8 @@ def split_body_footer(body: str) -> tuple[str, list[str]]:
     return "\n".join(lines).strip(), footer
 
 
-def collect_changed_files(base: str | None, target: str, paths: list[str]) -> list[str]:
-    files = changed_files(base, target)
-    return [item for item in files if any(path_matches(item, path) for path in paths)]
+def changed_files_from_statuses(file_statuses: list[tuple[str, str]]) -> list[str]:
+    return [changed_file for _, changed_file in file_statuses]
 
 
 def collect_changed_file_statuses(base: str | None, target: str, paths: list[str]) -> list[tuple[str, str]]:
@@ -416,6 +416,29 @@ def collect_changed_file_statuses(base: str | None, target: str, paths: list[str
         if any(path_matches(changed_file, path) for path in paths):
             statuses.append((status, changed_file))
     return statuses
+
+
+def validate_state_reports(reports: list[str] | None) -> list[str]:
+    if not reports:
+        raise SystemExit("--state-report is required so release notes cite pogo-state evidence")
+    out: list[str] = []
+    for item in reports:
+        report_path = (ROOT / item).resolve()
+        try:
+            report_path.relative_to(STATE_REPORT_ROOT)
+        except ValueError as exc:
+            raise SystemExit(f"state report must be under pogo-state/subagent-reports: {item}") from exc
+        if not report_path.is_file():
+            raise SystemExit(f"state report not found: {item}")
+        out.append(display_path(report_path))
+    return out
+
+
+def print_state_reports(reports: list[str]) -> None:
+    print("## State 리포트 근거\n")
+    for item in reports:
+        print(f"- `{item}`")
+    print()
 
 
 def category_for(subject: str) -> str:
@@ -509,11 +532,13 @@ def notes(args: argparse.Namespace) -> int:
     if not args.handoff:
         print("--handoff is required so release notes include maintenance handoff details", file=sys.stderr)
         return 2
+    state_reports = validate_state_reports(args.state_report)
     scope_paths = project_scope_paths(mapped, path)
     commits = collect_commits(rev_range, scope_paths)
-    files = collect_changed_files(base, target, scope_paths)
     file_statuses = collect_changed_file_statuses(base, target, scope_paths)
+    files = changed_files_from_statuses(file_statuses)
     print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
+    print_state_reports(state_reports)
     print("## 릴리즈 필요성\n")
     print(f"- {args.reason}\n")
     print("## 버전\n")
@@ -575,11 +600,13 @@ def merge_notes(args: argparse.Namespace) -> int:
     if not args.handoff:
         print("--handoff is required so merge release notes include maintenance handoff details", file=sys.stderr)
         return 2
+    state_reports = validate_state_reports(args.state_report)
     scope_paths = project_scope_paths(mapped, path)
     merges = collect_merge_commits(rev_range, scope_paths)
-    files = collect_changed_files(base, target, scope_paths)
     file_statuses = collect_changed_file_statuses(base, target, scope_paths)
+    files = changed_files_from_statuses(file_statuses)
     print(f"## 프로젝트\n\n- `{project}` ({', '.join(scope_paths)})\n")
+    print_state_reports(state_reports)
     print("## 릴리즈 판단\n")
     if merges:
         print("- 이전 릴리즈 이후 병합된 개발 건이 있어 릴리즈 검토를 권장합니다.")
@@ -740,6 +767,7 @@ def main(argv: list[str]) -> int:
     n.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
     n.add_argument("--reason", help="why this release or version bump is needed")
     n.add_argument("--handoff", help="maintenance handoff details such as owner, monitor, and follow-up")
+    n.add_argument("--state-report", action="append", help="pogo-state/subagent-reports file used as release evidence")
     n.set_defaults(fn=notes)
     m = sub.add_parser("merge-notes", help="draft release notes from merge commit title/body/footer without creating a release")
     add_scope_args(m)
@@ -748,6 +776,7 @@ def main(argv: list[str]) -> int:
     m.add_argument("--verify", action="append", help="verification evidence line to include in release notes")
     m.add_argument("--reason", help="why this release or version bump is needed")
     m.add_argument("--handoff", help="maintenance handoff details such as owner, monitor, and follow-up")
+    m.add_argument("--state-report", action="append", help="pogo-state/subagent-reports file used as release evidence")
     m.set_defaults(fn=merge_notes)
     p = sub.add_parser("projects")
     p.set_defaults(fn=projects)
